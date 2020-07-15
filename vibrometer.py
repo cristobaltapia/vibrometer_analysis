@@ -17,9 +17,9 @@ RHO = WEIGHT / (L * T * W)
 # Vibrometer parameters
 VELO = 100.0
 # Thresshold for detection of impulse
-THRESSHOLD = 1e-6 * VELO / 4.0
+THRESSHOLD = 1e-3 * VELO / 4.0
 # Recording time after impulse detection
-REC_TIME = 0.04
+REC_TIME = 0.4
 # Name of the device to use
 DEV_NAME = "default"
 
@@ -51,7 +51,7 @@ class SignalAnalysis:
         self._psd = None
         self._peaks_ix = None
 
-    def wait_and_record(self, duration, total_recording):
+    def wait_and_record(self, duration, total_recording, thress):
         """Start recording and return the signal after an impulse is given.
 
         Parameters
@@ -75,18 +75,19 @@ class SignalAnalysis:
         print("------------------")
         print("Recording...")
 
+        print("Waiting for impulse...")
         t_i = time()
         while True:
-            ix = np.argmax(recording)
-            val = recording[ix]
-            if val > THRESSHOLD:
+            ix = np.argmax(np.abs(recording[:, 0]))
+            val = recording[ix, 0]
+            if val > thress:
                 print("Impulse detected!...")
                 break
-            if time() - t_i > duration:
+            if time() - t_i > total_recording:
                 break
             sleep(0.01)
 
-        ix = ix - int(fs * 0.005)
+        ix = ix - int(fs * 0.001)
         sleep(duration)
 
         sd.stop()
@@ -196,7 +197,7 @@ class SignalAnalysis:
         peaks_ix = self._peaks_ix
 
         ax = gui.plot.ax
-        ax2 = guii.plot_f.ax
+        ax2 = gui.plot_f.ax
 
         ax.clear()
         ax2.clear()
@@ -205,11 +206,12 @@ class SignalAnalysis:
 
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("Velocity [mm/s]")
-        ax.figure.canvas.draw()
-        ax.figure.tight_layout()
 
         ax2.plot(freq, psd)
         ax2.scatter(freq[peaks_ix], psd[peaks_ix], marker="o", color="r")
+
+        ax2.set_xlabel("Frequency [Hz]")
+        ax2.set_ylabel("PSD")
 
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("Power spectrum")
@@ -224,6 +226,11 @@ class SignalAnalysis:
                              "connectionstyle": "arc"
                          })
 
+        ax.figure.canvas.draw()
+        ax.figure.tight_layout()
+        ax2.figure.canvas.draw()
+        ax2.figure.tight_layout()
+
     @property
     def n_points(self):
         """TODO: Docstring for n_points.
@@ -233,6 +240,28 @@ class SignalAnalysis:
 
         """
         return self._n_points
+
+    def calc_moe(self, length, width, thick, weight):
+        """TODO: Docstring for calc_moe.
+
+        Parameters
+        ----------
+        length : TODO
+        width : TODO
+        thick : TODO
+        weight : TODO
+
+        Returns
+        -------
+        TODO
+
+        """
+        freq = self._freq
+        peaks_ix = self._peaks_ix
+
+        rho = weight / (length * width * thick)
+
+        return 4 * length**2 * freq[peaks_ix]**2 * rho
 
 
 def main():
@@ -248,7 +277,8 @@ def main():
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
-    vib_data, time_ = vib_analysis.wait_and_record(duration=REC_TIME, total_recording=10)
+    vib_data, time_ = vib_analysis.wait_and_record(duration=REC_TIME,
+            total_recording=20, thress=THRESSHOLD)
 
     vib_analysis.compute_frequencies()
 

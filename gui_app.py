@@ -2,7 +2,7 @@ import re
 from guietta import Gui, _, B, E, L, R, M, ___, III, VS, HS, HSeparator, VSeparator
 from vibrometer import SignalAnalysis
 import sounddevice as sd
-from vibrometer import DEV_NAME, REC_TIME
+from vibrometer import DEV_NAME
 
 VELO = None
 
@@ -11,7 +11,7 @@ def listen_for_signal(gui, *args):
     # Parameters
     dev_num = None
 
-    rec_time = gui.rec_time
+    rec_time = float(gui.rec_time)
 
     for ix, dev in enumerate(sd.query_devices()):
         match_name = re.match(DEV_NAME, dev["name"])
@@ -21,14 +21,25 @@ def listen_for_signal(gui, *args):
             break
 
     gui.status = "Waiting for impulse..."
+    thress = float(gui.thress)
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
-    vib_data, time_ = vib_analysis.wait_and_record(duration=REC_TIME, total_recording=10)
+    vib_data, time_ = vib_analysis.wait_and_record(duration=rec_time, total_recording=10,
+                                                   thress=thress)
 
     freq = vib_analysis.compute_frequencies()
 
-    gui.results = {f"f_{k}": f"{val:1.2f} Hz" for k, val in enumerate(freq)}
+    l = float(gui.l)
+    w = float(gui.w)
+    t = float(gui.t)
+    kg = float(gui.kg)
+
+    moes = vib_analysis.calc_moe(length=l, width=w, thick=t, weight=kg)
+    print(moes)
+
+    gui.results = {f"f_{k} :": f"{val:1.0f} Hz" for k, val in enumerate(freq) if k < 3}
+    gui.moes = {f"E_{k} :": f"{val:1.0f} MPa" for k, val in enumerate(moes) if k < 3}
 
     vib_analysis.make_plot_gui(gui)
     gui.status = "Idle..."
@@ -57,30 +68,43 @@ def toggle_velo(gui, *args):
 
 if __name__ == "__main__":
     gui = Gui(
-        ['VELO [mm/s]:',    R('velo_1'),    _,         _],
-        [_,                 R('velo_2'),    _,         _],
-        [_,                 R('velo_3'),    _,         _],
-        ['Recording time ', '__rec_time__', ['Start'], _],
-        ['Status: ',        'status',       'results', ___],
-        [M('plot'),         ___,            ___,       ___],
-        [M('plot_f'),         ___,            ___,       ___],
+        ['VELO [mm/s]:',    R('velo_1'),    'Width (mm)',     '__w__'],
+        [_,                 R('velo_2'),    'Thickness (mm)', '__t__'],
+        [_,                 R('velo_3'),    'Length (mm)',    '__l__'],
+        [_,                 _,              'Weight (kg)',    '__kg__'],
+        ['Recording time ', '__rec_time__', ['Start'],        _],
+        ['Thresshold ',     '__thress__',   _,                _],
+        ['Status: ',        'status',              'results',        'moes'],
+        [M('plot'),         ___,            ___,              ___],
+        [M('plot_f'),       ___,            ___,              ___],
     )
 
     gui.widgets["velo_1"].setText("20")
     gui.widgets["velo_2"].setText("100")
     gui.widgets["velo_3"].setText("500")
 
-    # gui.velo_1 = ("isChecked", toggle_velo)
     gui.velo_1 = toggle_velo
     gui.velo_2 = toggle_velo
     gui.velo_3 = toggle_velo
-    gui.velo_1.toggle()
+    gui.velo_2.toggle()
+    VELO = 100.
     gui.status = "Idle..."
     gui.rec_time = 0.5
+    gui.thress = 2e-6
+    gui.w = 120.0
+    gui.t = 40.0
+    gui.l = 2000.0
+    gui.kg = 500
+
     gui.results = {
         "f₁:": None,
         "f₂:": None,
         "f₃:": None,
+    }
+    gui.moes = {
+        "E₁:": None,
+        "E₂:": None,
+        "E₃:": None,
     }
     gui.Start = listen_for_signal
     gui.run()
