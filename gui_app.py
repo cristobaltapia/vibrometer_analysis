@@ -14,7 +14,7 @@ def listen_for_signal(gui, *args):
     rec_time = float(gui.rec_time)
 
     for ix, dev in enumerate(sd.query_devices()):
-        match_name = re.match(DEV_NAME, dev["name"])
+        match_name = re.findall(DEV_NAME, dev["name"])
         if match_name:
             dev_num = ix
             dev_rate = dev["default_samplerate"]
@@ -25,10 +25,12 @@ def listen_for_signal(gui, *args):
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
-    vib_data, time_ = vib_analysis.wait_and_record(duration=rec_time, total_recording=10,
-                                                   thress=thress)
+    vib_analysis.wait_and_record(duration=rec_time, total_recording=10, thress=thress)
 
-    freq = vib_analysis.compute_frequencies()
+    max_freq = int(gui.max_freq_s * 20000.0 / 99.0)
+    min_freq = int(gui.min_freq_s * 20000.0 / 99.0)
+
+    freq = vib_analysis.compute_frequencies(min_freq=min_freq, max_freq=max_freq)
 
     l = float(gui.l)
     w = float(gui.w)
@@ -36,7 +38,6 @@ def listen_for_signal(gui, *args):
     kg = float(gui.kg)
 
     moes = vib_analysis.calc_moe(length=l, width=w, thick=t, weight=kg)
-    print(moes)
 
     gui.results = {f"f_{k} :": f"{val:1.0f} Hz" for k, val in enumerate(freq) if k < 3}
     gui.moes = {f"E_{k} :": f"{val:1.0f} MPa" for k, val in enumerate(moes) if k < 3}
@@ -74,7 +75,9 @@ if __name__ == "__main__":
         [_,                 _,              'Weight (kg)',    '__kg__'],
         ['Recording time ', '__rec_time__', ['Start'],        _],
         ['Thresshold ',     '__thress__',   _,                _],
-        ['Status: ',        'status',              'results',        'moes'],
+        ['Status: ',        'status',       'results',        'moes'],
+        ['min_freq',        ___,            L('max_freq'),       ___],
+        [HS('min_freq_s'),  ___,            HS('max_freq_s'), ___],
         [M('plot'),         ___,            ___,              ___],
         [M('plot_f'),       ___,            ___,              ___],
     )
@@ -89,6 +92,18 @@ if __name__ == "__main__":
     gui.velo_2.toggle()
     VELO = 100.
     gui.status = "Idle..."
+
+    gui.min_freq_s = 0
+    gui.max_freq_s = 99
+
+    with gui.max_freq_s:
+        freq_str = gui.max_freq_s * 20000.0 / 99.0
+        gui.widgets["max_freq"].setText(f"max freq.: {freq_str:1.0f} Hz")
+
+    with gui.min_freq_s:
+        freq_min_str = gui.min_freq_s * 20000.0 / 99.0
+        gui.widgets["min_freq"].setText(f"min freq.: {freq_min_str:1.0f} Hz")
+
     gui.rec_time = 0.5
     gui.thress = 2e-6
     gui.w = 120.0

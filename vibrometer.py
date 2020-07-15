@@ -87,13 +87,14 @@ class SignalAnalysis:
                 break
             sleep(0.01)
 
-        ix = ix - int(fs * 0.001)
-        sleep(duration)
+        extra_time = 0.02
+        ix = ix + int(fs * extra_time)
+        sleep(duration + extra_time)
 
         sd.stop()
         print("Stop recording...")
 
-        data = recording[ix:ix + int(duration * fs)]
+        data = recording[ix:ix + int((duration + extra_time) * fs)]
         data = data.reshape((-1, ))
 
         # Remove mean
@@ -110,7 +111,7 @@ class SignalAnalysis:
 
         return data, time_
 
-    def compute_frequencies(self):
+    def compute_frequencies(self, min_freq=0, max_freq=20000):
         """TODO: Docstring for compute_frequencies.
         Returns
         -------
@@ -125,13 +126,18 @@ class SignalAnalysis:
         window = hamming(n_points)
 
         # Apply FFT
-        psd_ = fft(data * window)[1:n_points // 2]
-        freq = fftfreq(n_points, d=spacing)[1:n_points // 2]
+        psd_ = fft(data * window)[0:n_points // 2]
+        freq = fftfreq(n_points, d=spacing)[0:n_points // 2]
 
         psd_ = np.real(psd_)
         psd = 1.0 / n_points * np.abs(psd_)
-        psd = psd[1:]
-        freq = freq[1:]
+
+        # Narrow the frequency space to the needed one
+        ix_min = np.argmax(freq == min_freq)
+        ix_max = np.argmax(freq == max_freq)
+
+        psd = psd[ix_min: ix_max]
+        freq = freq[ix_min: ix_max]
 
         # Obtain the three most relevant frequencies
         height = np.max(psd) * 0.3
@@ -213,23 +219,23 @@ class SignalAnalysis:
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
 
-        ax2.set_xlabel("Frequency [Hz]")
-        ax2.set_ylabel("Power spectrum")
         ax2.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
 
         for pi in peaks_ix:
             x_i = freq[pi]
             y_i = psd[pi]
-            ax2.annotate(f"{x_i} Hz", xy=(x_i, y_i), xytext=(20, -10),
+            ax2.annotate(f"{x_i:1.0f} Hz", xy=(x_i, y_i), xytext=(20, -10),
                          textcoords="offset points", arrowprops={
                              "arrowstyle": "->",
                              "connectionstyle": "arc"
                          })
 
-        ax.figure.canvas.draw()
         ax.figure.tight_layout()
-        ax2.figure.canvas.draw()
+        # ax.figure.canvas.updateGeometry()
+        ax.figure.canvas.draw()
+        # ax2.figure.canvas.updateGeometry()
         ax2.figure.tight_layout()
+        ax2.figure.canvas.draw()
 
     @property
     def n_points(self):
