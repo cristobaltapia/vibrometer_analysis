@@ -103,7 +103,7 @@ class SignalAnalysis:
         # Scale of the signal to obtain mm/s
         data = data * self._velo / 4.0
 
-        time_ = np.arange(start=0, step=1 / fs, stop=len(data) / fs)
+        time_ = np.arange(start=0, step=1.0 / fs, stop=len(data) / fs)
 
         self._data = data
         self._time = time_
@@ -133,11 +133,11 @@ class SignalAnalysis:
         psd = 1.0 / n_points * np.abs(psd_)
 
         # Narrow the frequency space to the needed one
-        ix_min = np.argmax(freq == min_freq)
-        ix_max = np.argmax(freq == max_freq)
+        ix_min = np.argmin(np.abs(freq - min_freq))
+        ix_max = np.argmin(np.abs(freq - max_freq))
 
-        psd = psd[ix_min: ix_max]
-        freq = freq[ix_min: ix_max]
+        psd = psd[ix_min: ix_max+1]
+        freq = freq[ix_min: ix_max+1]
 
         # Obtain the three most relevant frequencies
         height = np.max(psd) * 0.3

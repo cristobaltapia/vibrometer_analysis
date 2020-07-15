@@ -20,17 +20,18 @@ def listen_for_signal(gui, *args):
             dev_rate = dev["default_samplerate"]
             break
 
-    gui.status = "Waiting for impulse..."
+    gui.widgets['status'].setText("Waiting for impulse...")
     thress = float(gui.thress)
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
     vib_analysis.wait_and_record(duration=rec_time, total_recording=10, thress=thress)
 
-    max_freq = int(gui.max_freq_s * 20000.0 / 99.0)
-    min_freq = int(gui.min_freq_s * 20000.0 / 99.0)
+    max_freq = int(gui.max_freq)
+    min_freq = int(gui.min_freq)
 
     freq = vib_analysis.compute_frequencies(min_freq=min_freq, max_freq=max_freq)
+    print(freq)
 
     l = float(gui.l)
     w = float(gui.w)
@@ -69,17 +70,17 @@ def toggle_velo(gui, *args):
 
 if __name__ == "__main__":
     gui = Gui(
-        ['VELO [mm/s]:',    R('velo_1'),    'Width (mm)',     '__w__'],
-        [_,                 R('velo_2'),    'Thickness (mm)', '__t__'],
-        [_,                 R('velo_3'),    'Length (mm)',    '__l__'],
-        [_,                 _,              'Weight (kg)',    '__kg__'],
-        ['Recording time ', '__rec_time__', ['Start'],        _],
-        ['Thresshold ',     '__thress__',   _,                _],
-        ['Status: ',        'status',       'results',        'moes'],
-        ['min_freq',        ___,            L('max_freq'),       ___],
-        [HS('min_freq_s'),  ___,            HS('max_freq_s'), ___],
-        [M('plot'),         ___,            ___,              ___],
-        [M('plot_f'),       ___,            ___,              ___],
+        ['VELO [mm/s]:',       R('velo_1'),    'Width (mm)',         '__w__'],
+        [_,                    R('velo_2'),    'Thickness (mm)',     '__t__'],
+        [_,                    R('velo_3'),    'Length (mm)',        '__l__'],
+        [_,                    _,              'Weight (kg)',        '__kg__'],
+        ['Recording time ',    '__rec_time__', ['Start'],            _],
+        ['Thresshold ',        '__thress__',   _,                    _],
+        ['Status: ',           'status',       'results',            'moes'],
+        [L('min freq. (Hz):'), '__min_freq__', L('max freq. (Hz):'), '__max_freq__'],
+        [HS('min_freq_s'),     ___,            HS('max_freq_s'),     ___],
+        [M('plot'),            ___,            ___,                  ___],
+        [M('plot_f'),          ___,            ___,                  ___],
     )
 
     gui.widgets["velo_1"].setText("20")
@@ -98,18 +99,18 @@ if __name__ == "__main__":
 
     with gui.max_freq_s:
         freq_str = gui.max_freq_s * 20000.0 / 99.0
-        gui.widgets["max_freq"].setText(f"max freq.: {freq_str:1.0f} Hz")
+        gui.widgets["max_freq"].setText(f"{freq_str:1.0f}")
 
     with gui.min_freq_s:
         freq_min_str = gui.min_freq_s * 20000.0 / 99.0
-        gui.widgets["min_freq"].setText(f"min freq.: {freq_min_str:1.0f} Hz")
+        gui.widgets["min_freq"].setText(f"{freq_min_str:1.0f}")
 
     gui.rec_time = 0.5
-    gui.thress = 2e-6
-    gui.w = 120.0
-    gui.t = 40.0
-    gui.l = 2000.0
-    gui.kg = 500
+    gui.thress = 2e-2
+    gui.w = 90.0
+    gui.t = 20.0
+    gui.l = 640.0
+    gui.kg = 0.552
 
     gui.results = {
         "f₁:": None,
