@@ -79,7 +79,7 @@ class SignalAnalysis:
         t_i = time()
         while True:
             ix = np.argmax(np.abs(recording[:, 0]))
-            val = recording[ix, 0]
+            val = np.abs(recording[ix, 0])
             if val > thress:
                 print("Impulse detected!...")
                 break

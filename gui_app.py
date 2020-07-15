@@ -5,7 +5,7 @@ import sounddevice as sd
 from vibrometer import DEV_NAME
 
 VELO = None
-
+# DEV_NAME = 'VIB-E-220 *SN0763'
 
 def listen_for_signal(gui, *args):
     # Parameters
