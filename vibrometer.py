@@ -1,11 +1,27 @@
 import re
 from time import sleep, time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 from numpy.fft import fft, fftfreq, fftshift
 from scipy.signal import blackman, find_peaks, hanning, hamming
+
+import matplotlib as mpl # isort: skip
+# Add the following befor importing pyplot:
+rc_params_gruyter = {
+    "figure.figsize": (2.8, 2.0),
+    # "axes.spines.right": False,
+    "axes.spines.top": False,
+    "font.size": 6,
+    "legend.fontsize": 5,
+    "axes.labelsize": 6,
+    # "lines.linewidth": 1.0,
+    # "lines.markersize": 5,
+    # "pgf.rcfonts": False,
+     }
+mpl.rcParams.update(rc_params_gruyter)
+import matplotlib.pyplot as plt
+
 
 # Board dimensions
 W = 100.0
@@ -231,9 +247,7 @@ class SignalAnalysis:
                          })
 
         ax.figure.tight_layout()
-        # ax.figure.canvas.updateGeometry()
         ax.figure.canvas.draw()
-        # ax2.figure.canvas.updateGeometry()
         ax2.figure.tight_layout()
         ax2.figure.canvas.draw()
 
