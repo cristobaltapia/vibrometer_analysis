@@ -5,7 +5,7 @@ However, it is very general and can be used with other signal sources (any micro
 
 ![screenshot](images/screenshot.png)
 
-== Functions ==
+## Functions
 
 * Live preview of the input signal
 * Autotrigger FFT when an impulse is detected
