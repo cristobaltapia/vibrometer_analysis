@@ -244,26 +244,34 @@ class Window(QMainWindow):
 
         ax = self.canvas.axes
         self.lines = ax.plot(self.live_data, color="C0", lw=0.7)
+        ax.set_xlim(left=0, right=5)
 
         ax.axis((0, len(self.live_data), -1, 1))
         ax.grid(True)
 
         self.stream = sd.InputStream(device=dev_num, channels=1, samplerate=fs,
                                      callback=self.audio_callback)
-
-        with self.stream:
-            self.ani = FuncAnimation(self.canvas.figure, self.update_live_preview,
-                                     interval=100, blit=True, repeat=False)
+        self.timer_prev = QtCore.QTimer()
+        self.timer_prev.timeout.connect(self.update_live_preview)
+        # self.ani = FuncAnimation(self.canvas.figure, self.update_live_preview,
+        #                      interval=100, blit=True, repeat=False)
+        self.stream.start()
+        self.timer_prev.start(100)
 
     def stop_live_preview(self):
-        self.ani.event_source.stop()
-        # self.stream.stop()
+        # self.ani.event_source.stop()
+        # self.ani._stop()
+        # self.ani._fig = None
+        self.timer_prev.setSingleShot(True)
+        self.timer_prev.stop()
+        # del self.ani
+        self.stream.stop()
         self.stream.close()
         self.preview.setText("Preview")
         self.preview.clicked.connect(self.start_live_recording)
         self.statusBar().showMessage('Ready...')
 
-    def update_live_preview(self, frame):
+    def update_live_preview(self):
         while True:
             try:
                 data = q.get_nowait()
@@ -274,7 +282,8 @@ class Window(QMainWindow):
             self.live_data[-shift:, :] = data
         for column, line in enumerate(self.lines):
             line.set_ydata(self.live_data[:, column])
-        return self.lines
+
+        self.canvas.draw()
 
     def init_plots(self):
         """
