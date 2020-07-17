@@ -14,7 +14,7 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.backends.backend_qt5agg import \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import (QApplication, QComboBox, QFormLayout, QGridLayout, QGroupBox,
                              QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton,
@@ -109,15 +109,23 @@ class Window(QMainWindow):
         form_device.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
         # Set default value to "100"
         self.cbox_vel.setCurrentIndex(1)
+
         #############################################################
         # Duration
         # group_velo.setLayout(form_time)
         self.rec_time = QLineEdit("0.2")
         self.rec_time.setFixedWidth(80)
-        form_device.addRow(QLabel("Recording time (s):"), self.rec_time)
         self.trigger = QLineEdit("0.02")
         self.trigger.setFixedWidth(80)
+
+        # Set validators
+        self.only_double = QtGui.QDoubleValidator()
+        self.only_double.setBottom(0)
+        self.rec_time.setValidator(self.only_double)
+        self.trigger.setValidator(self.only_double)
+        form_device.addRow(QLabel("Recording time (s):"), self.rec_time)
         form_device.addRow(QLabel("Trigger sensitivity (mm/s):"), self.trigger)
+
         # Get list of sound devices
         self.devs = []
         self.devs_ix = []
@@ -165,6 +173,11 @@ class Window(QMainWindow):
         form_board.addRow(QLabel("Thickness (mm):"), self.board_t)
         form_board.addRow(QLabel("Length (mm):"), self.board_l)
         form_board.addRow(QLabel("Weight (g):"), self.board_kg)
+        # Set validators
+        self.board_w.setValidator(self.only_double)
+        self.board_t.setValidator(self.only_double)
+        self.board_l.setValidator(self.only_double)
+        self.board_kg.setValidator(self.only_double)
 
         #############################################################
         # Frequency region
@@ -181,6 +194,12 @@ class Window(QMainWindow):
         self.freq_max_slide.sliderMoved[int].connect(self.update_max_freq)
         self.min_freq.textEdited.connect(self.update_min_freq_val)
         self.max_freq.textEdited.connect(self.update_max_freq_val)
+        self.freq_max_slide.setInvertedAppearance(True)
+
+        # Set validators
+        self.only_ints = QtGui.QIntValidator(bottom=0, top=20000)
+        self.min_freq.setValidator(self.only_ints)
+        self.max_freq.setValidator(self.only_ints)
 
         grid_freq.addWidget(QLabel("Min freq. (Hz):"), 0, 0)
         grid_freq.addWidget(QLabel("Max freq. (Hz):"), 2, 0)
@@ -250,16 +269,22 @@ class Window(QMainWindow):
         self.min_freq.setText(f"{freq:1.0f}")
 
     def update_max_freq(self, val):
-        freq = val * 20000.0 / 99.0
+        freq = 20000 - val * 20000.0 / 99.0
         self.max_freq.setText(f"{freq:1.0f}")
 
     def update_min_freq_val(self, val):
-        freq = float(val) * 99.0 / 20000.0
-        self.freq_min_slide.setValue(freq)
+        try:
+            freq = float(val) * 99.0 / 20000.0
+            self.freq_min_slide.setValue(freq)
+        except:
+            pass
 
     def update_max_freq_val(self, val):
-        freq = float(val) * 99.0 / 20000.0
-        self.freq_max_slide.setValue(freq)
+        try:
+            freq = (20000 - float(val)) * (99.0) / 20000.0
+            self.freq_max_slide.setValue(freq)
+        except:
+            pass
 
     def listen_for_signal(self):
         self.start.setEnabled(False)
