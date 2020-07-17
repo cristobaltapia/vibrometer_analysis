@@ -29,6 +29,7 @@ class Window(QMainWindow):
     """Docstring for Window. """
     restart_stream = QtCore.pyqtSignal(object)
     device_reload = QtCore.pyqtSignal(object)
+    sig_unlock = QtCore.pyqtSignal(object)
 
     def __init__(self):
         """TODO: to be defined. """
@@ -190,6 +191,7 @@ class Window(QMainWindow):
 
         self.restart_stream.connect(self.init_stream)
         self.device_reload.connect(self.reload_device)
+        self.sig_unlock.connect(self.unlock_input)
 
         self.show()
 
@@ -281,7 +283,7 @@ class Window(QMainWindow):
         # gui.status = "Idle..."
         self.statusBar().showMessage('Ready')
         self.preview.setEnabled(True)
-        self.unlock_input()
+        self.sig_unlock.emit("Unlock")
         self.restart_stream.emit("Restart")
         self.start.setEnabled(True)
 
