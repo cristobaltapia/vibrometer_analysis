@@ -211,25 +211,22 @@ class SignalAnalysis:
         fig.tight_layout()
         plt.show()
 
-    def make_plot_gui(self, gui):
+    def make_plot_gui(self, ax1, ax2):
         v = self._data
         t = self._time
         freq = self._freq
         psd = self._psd
         peaks_ix = self._peaks_ix
 
-        ax = gui.plot.ax
-        ax2 = gui.plot_f.ax
-
-        ax.clear()
+        ax1.clear()
         ax2.clear()
 
-        ax.plot(t, v)
+        ax1.plot(t, v, color="C0", lw=0.7)
 
-        ax.set_xlabel("Time [s]")
-        ax.set_ylabel("Velocity [mm/s]")
+        ax1.set_xlabel("Time [s]")
+        ax1.set_ylabel("Velocity [mm/s]")
 
-        ax2.plot(freq, psd)
+        ax2.plot(freq, psd, color="C0", lw=0.7)
         ax2.scatter(freq[peaks_ix], psd[peaks_ix], marker="o", color="r")
 
         ax2.set_xlabel("Frequency [Hz]")
@@ -246,8 +243,8 @@ class SignalAnalysis:
                              "connectionstyle": "arc"
                          })
 
-        ax.figure.tight_layout()
-        ax.figure.canvas.draw()
+        ax1.figure.tight_layout()
+        ax1.figure.canvas.draw()
         ax2.figure.tight_layout()
         ax2.figure.canvas.draw()
 
