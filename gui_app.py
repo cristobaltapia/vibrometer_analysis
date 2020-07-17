@@ -80,7 +80,6 @@ class Window(QMainWindow):
         group_board = QGroupBox("Board properties")
         form_board = QFormLayout()
         group_board.setLayout(form_board)
-        # form_board.addStretch()
 
         # Layout for frequency region
         group_freq = QGroupBox("Frequency range")
@@ -100,7 +99,7 @@ class Window(QMainWindow):
         right_layout.addWidget(group_results)
 
         #############################################################
-        # VELO
+        # Volicity
         self.cbox_vel = QComboBox()
         self.cbox_vel.setFixedWidth(80)
         self.cbox_vel.addItem("20")
@@ -112,7 +111,6 @@ class Window(QMainWindow):
 
         #############################################################
         # Duration
-        # group_velo.setLayout(form_time)
         self.rec_time = QDoubleSpinBox()
         self.rec_time.setMinimum(0.01)
         self.rec_time.setDecimals(2)
@@ -226,10 +224,6 @@ class Window(QMainWindow):
         data_results = pd.DataFrame({"Freq. [Hz]": [0], "E_dyn [MPa]": [0]})
         self.data_results = TableModel(data_results)
         self.results = TableResults(self.data_results)
-        # self.results.setModel(self.data_results)
-        # header = self.results.horizontalHeader()
-        # header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
-        # header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         results_layout.addWidget(self.results)
 
         #############################################################
