@@ -11,13 +11,14 @@ from matplotlib.animation import FuncAnimation
 from PyQt5.QtWidgets import (QApplication, QLabel, QGroupBox, QWidget, QComboBox, QWidget,
                              QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGridLayout,
                              QMainWindow, QFormLayout, QSlider, QTableWidget,
-                             QTableWidgetItem)
+                             QTableWidgetItem, QTableView)
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import QRunnable, QThreadPool, pyqtSlot
+from PyQt5.QtCore import QRunnable, QThreadPool, pyqtSlot, Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import numpy as np
+import pandas as pd
 from time import sleep
 import random
 import queue
@@ -165,13 +166,14 @@ class Window(QMainWindow):
 
         #############################################################
         # Results
-        self.results = QTableWidget()
-        self.results.setColumnCount(2)
-        self.results.setRowCount(5)
+        # self.results = QTableWidget()
+        self.results = QTableView()
+        data_results = pd.DataFrame({"Freq. [Hz]": [0], "E_dyn [MPa]": [0]})
+        self.data_results = TableModel(data_results)
+        self.results.setModel(self.data_results)
         header = self.results.horizontalHeader()
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
-        self.results.setHorizontalHeaderLabels(["Freq. [Hz]", "E_dyn [MPa]"])
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         grid.addWidget(self.results)
 
         #############################################################
@@ -237,7 +239,6 @@ class Window(QMainWindow):
 
     def listen_for_signal(self):
         self.start.setEnabled(False)
-        self.results.clearContents()
         self.lock_input()
         self.preview.setEnabled(False)
         worker = Worker(self._listen_for_signal)
@@ -273,11 +274,12 @@ class Window(QMainWindow):
 
         moes = vib_analysis.calc_moe(length=l, width=w, thick=t, weight=kg)
 
-        for k, val in enumerate(freq):
-            self.results.setItem(k, 0, QTableWidgetItem(f"{val:1.0f}"))
+        moes = np.round(moes, 0)
+        freq = np.round(freq, 0)
 
-        for k, val in enumerate(moes):
-            self.results.setItem(k, 1, QTableWidgetItem(f"{val:1.0f}"))
+        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes})
+        self.data_results = TableModel(data_results)
+        self.results.setModel(self.data_results)
 
         vib_analysis.make_plot_gui(self.canvas.axes, self.canvas_f.axes)
         # gui.status = "Idle..."
@@ -427,7 +429,6 @@ class MicrophoneCapture:
     rate : TODO
 
     """
-
     def __init__(self, device, rate, downsample):
         """TODO: to be defined.
 
@@ -458,6 +459,32 @@ class MicrophoneCapture:
         # Fancy indexing with mapping creates a (necessary!) copy:
         # self.signal[:] = indata[::self.downsample, 0]
         self.q.put(indata[::self.downsample, mapping])
+
+
+class TableModel(QtCore.QAbstractTableModel):
+    def __init__(self, data):
+        super(TableModel, self).__init__()
+        self._data = data
+
+    def data(self, index, role):
+        if role == Qt.DisplayRole:
+            value = self._data.iloc[index.row(), index.column()]
+            return str(value)
+
+    def rowCount(self, index):
+        return self._data.shape[0]
+
+    def columnCount(self, index):
+        return self._data.shape[1]
+
+    def headerData(self, section, orientation, role):
+        # section is the index of the column/row.
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._data.columns[section])
+
+            if orientation == Qt.Vertical:
+                return str(self._data.index[section])
 
 
 class Worker(QRunnable):
