@@ -19,7 +19,7 @@ from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import (QApplication, QComboBox, QFormLayout, QGridLayout, QGroupBox,
                              QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton,
                              QSlider, QTableView, QTableWidget, QTableWidgetItem,
-                             QVBoxLayout, QWidget)
+                             QVBoxLayout, QWidget, QDoubleSpinBox)
 
 from vibrometer import DEV_NAME, SignalAnalysis
 
@@ -113,16 +113,22 @@ class Window(QMainWindow):
         #############################################################
         # Duration
         # group_velo.setLayout(form_time)
-        self.rec_time = QLineEdit("0.2")
+        self.rec_time = QDoubleSpinBox()
+        self.rec_time.setMinimum(0.01)
+        self.rec_time.setDecimals(2)
+        self.rec_time.setSingleStep(0.1)
+        self.rec_time.setValue(0.2)
         self.rec_time.setFixedWidth(80)
-        self.trigger = QLineEdit("0.02")
+        self.trigger = QDoubleSpinBox()
+        self.trigger.setMinimum(1e-8)
+        self.trigger.setValue(0.02)
+        self.trigger.setDecimals(5)
+        self.trigger.setSingleStep(0.01)
         self.trigger.setFixedWidth(80)
 
         # Set validators
         self.only_double = QtGui.QDoubleValidator()
         self.only_double.setBottom(0)
-        self.rec_time.setValidator(self.only_double)
-        self.trigger.setValidator(self.only_double)
         form_device.addRow(QLabel("Recording time (s):"), self.rec_time)
         form_device.addRow(QLabel("Trigger sensitivity (mm/s):"), self.trigger)
 
@@ -183,24 +189,31 @@ class Window(QMainWindow):
         # Frequency region
         self.freq_min_slide = QSlider(QtCore.Qt.Horizontal)
         self.freq_max_slide = QSlider(QtCore.Qt.Horizontal)
+        self.freq_max_slide.setInvertedAppearance(True)
         default_min = 100
         default_max = 4000
-        self.min_freq = QLineEdit(f"{default_min}")
+        self.min_freq = QDoubleSpinBox()
         self.freq_min_slide.setValue(int(default_min * 99.0 / 20000.0))
-        self.max_freq = QLineEdit(f"{default_max}")
-        self.freq_max_slide.setValue(int(default_max * 99.0 / 20000.0))
+        self.min_freq.setFixedWidth(80)
+        self.min_freq.setDecimals(0)
+        self.min_freq.setRange(0, 20000)
+        self.min_freq.setValue(default_min)
+        self.min_freq.setSingleStep(50)
+
+        self.max_freq = QDoubleSpinBox()
+        self.freq_max_slide.setValue(int(99.0 - default_max * 99.0 / 20000.0))
+        self.max_freq.setFixedWidth(80)
+        self.max_freq.setDecimals(0)
+        self.max_freq.setRange(0, 20000)
+        self.max_freq.setValue(default_max)
+        self.max_freq.setSingleStep(50)
 
         self.freq_min_slide.sliderMoved[int].connect(self.update_min_freq)
         self.freq_max_slide.sliderMoved[int].connect(self.update_max_freq)
-        self.min_freq.textEdited.connect(self.update_min_freq_val)
-        self.max_freq.textEdited.connect(self.update_max_freq_val)
-        self.freq_max_slide.setInvertedAppearance(True)
+        self.min_freq.valueChanged.connect(self.update_min_freq_val)
+        self.max_freq.valueChanged.connect(self.update_max_freq_val)
 
         # Set validators
-        self.only_ints = QtGui.QIntValidator(bottom=0, top=20000)
-        self.min_freq.setValidator(self.only_ints)
-        self.max_freq.setValidator(self.only_ints)
-
         grid_freq.addWidget(QLabel("Min freq. (Hz):"), 0, 0)
         grid_freq.addWidget(QLabel("Max freq. (Hz):"), 2, 0)
         grid_freq.addWidget(self.min_freq, 0, 1)
@@ -265,26 +278,24 @@ class Window(QMainWindow):
         self.device_reload.emit("Reload device")
 
     def update_min_freq(self, val):
-        freq = val * 20000.0 / 99.0
-        self.min_freq.setText(f"{freq:1.0f}")
+        freq = int(val * 20000.0 / 99.0)
+        self.min_freq.setValue(freq)
 
     def update_max_freq(self, val):
         freq = 20000 - val * 20000.0 / 99.0
-        self.max_freq.setText(f"{freq:1.0f}")
+        self.max_freq.setValue(freq)
 
     def update_min_freq_val(self, val):
-        try:
-            freq = float(val) * 99.0 / 20000.0
-            self.freq_min_slide.setValue(freq)
-        except:
-            pass
+        slider = val * 99.0 / 20000.0
+        self.min_freq.valueChanged.disconnect()
+        self.freq_min_slide.setValue(slider)
+        self.min_freq.valueChanged.connect(self.update_min_freq_val)
 
     def update_max_freq_val(self, val):
-        try:
-            freq = (20000 - float(val)) * (99.0) / 20000.0
-            self.freq_max_slide.setValue(freq)
-        except:
-            pass
+        slider = (20000 - float(val)) * (99.0) / 20000.0
+        self.max_freq.valueChanged.disconnect()
+        self.freq_max_slide.setValue(slider)
+        self.max_freq.valueChanged.connect(self.update_max_freq_val)
 
     def listen_for_signal(self):
         self.start.setEnabled(False)
@@ -301,18 +312,18 @@ class Window(QMainWindow):
         dev_num = self.devs_ix[ix_sel]
         dev_rate = self.devs_rate[ix_sel]
 
-        rec_time = float(self.rec_time.text())
+        rec_time = self.rec_time.value()
 
         self.statusBar().showMessage('Waiting for impulse...')
-        thress = float(self.trigger.text())
+        thress = self.trigger.value()
         velo = float(self.cbox_vel.currentText())
 
         vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=velo)
         # Record signal after impulse
         vib_analysis.wait_and_record(duration=rec_time, total_recording=10, thress=thress)
 
-        max_freq = int(self.max_freq.text())
-        min_freq = int(self.min_freq.text())
+        max_freq = int(self.max_freq.value())
+        min_freq = int(self.min_freq.value())
 
         freq = vib_analysis.compute_frequencies(min_freq=min_freq, max_freq=max_freq)
 
@@ -326,7 +337,8 @@ class Window(QMainWindow):
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
 
-        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes})
+        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes},
+                dtype=np.int)
         self.data_results = TableModel(data_results)
         self.results.setModel(self.data_results)
 
