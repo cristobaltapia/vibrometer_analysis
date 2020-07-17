@@ -17,29 +17,32 @@ from PyQt5.QtCore import QRunnable, QThreadPool, pyqtSlot
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
 import numpy as np
 from time import sleep
 import random
 import queue
 
-q = queue.Queue()
 mapping = [c - 1 for c in [1]]
 
 
 class Window(QMainWindow):
     """Docstring for Window. """
+    restart_stream = QtCore.pyqtSignal(object)
+
     def __init__(self):
         """TODO: to be defined. """
         super().__init__()
         self.threadpool = QThreadPool()
+        self.q = queue.Queue()
+        self.downsample = 20
+        self.preview_time = 5
 
         self.initUI()
 
     def initUI(self):
         self.statusBar().showMessage('Ready')
         # self.setGeometry(300, 300, 250, 150)
-        self.setWindowTitle('Statusbar')
+        self.setWindowTitle('Vibrometer analysis Pro30000')
         self.main_widget = QWidget(self)
 
         grid = QGridLayout(self.main_widget)
@@ -56,11 +59,13 @@ class Window(QMainWindow):
         self.cbox_vel.addItem("100")
         self.cbox_vel.addItem("500")
         form_time.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
+        # Set default value to "100"
+        self.cbox_vel.setCurrentIndex(1)
         grid.addWidget(group_velo, 0, 0)
         #############################################################
         # Duration
         group_velo.setLayout(form_time)
-        self.rec_time = QLineEdit("0.5")
+        self.rec_time = QLineEdit("0.2")
         self.rec_time.setFixedWidth(80)
         form_time.addRow(QLabel("Recording time (s):"), self.rec_time)
         self.trigger = QLineEdit("0.02")
@@ -86,7 +91,11 @@ class Window(QMainWindow):
         self.start.clicked.connect(self.listen_for_signal)
         self.preview = QPushButton("Preview")
         self.preview.clicked.connect(self.start_live_recording)
-        form_time.addRow(self.start, self.preview)
+        self.preview_stop = QPushButton("Stop")
+        self.preview_stop.clicked.connect(self.stop_live_preview)
+        form_time.addRow(self.preview, self.preview_stop)
+        form_time.addRow(self.start, QLabel(""))
+        self.preview_stop.setEnabled(False)
 
         #############################################################
         # Board properties
@@ -99,7 +108,7 @@ class Window(QMainWindow):
         self.board_w = QLineEdit("100")
         self.board_t = QLineEdit("30")
         self.board_l = QLineEdit("1000")
-        self.board_kg = QLineEdit("1.0")
+        self.board_kg = QLineEdit("500")
         self.board_w.setFixedWidth(100)
         self.board_t.setFixedWidth(100)
         self.board_l.setFixedWidth(100)
@@ -107,7 +116,7 @@ class Window(QMainWindow):
         form_board.addRow(QLabel("Width (mm):"), self.board_w)
         form_board.addRow(QLabel("Thickness (mm):"), self.board_t)
         form_board.addRow(QLabel("Length (mm):"), self.board_l)
-        form_board.addRow(QLabel("Weight (kg):"), self.board_kg)
+        form_board.addRow(QLabel("Weight (g):"), self.board_kg)
 
         #############################################################
         # Frequency region
@@ -119,9 +128,12 @@ class Window(QMainWindow):
 
         self.freq_min_slide = QSlider(QtCore.Qt.Horizontal)
         self.freq_max_slide = QSlider(QtCore.Qt.Horizontal)
-        self.min_freq = QLineEdit("50")
-        self.max_freq = QLineEdit("20000")
-        self.freq_max_slide.setValue(99)
+        default_min = 100
+        default_max = 4000
+        self.min_freq = QLineEdit(f"{default_min}")
+        self.freq_min_slide.setValue(int(default_min * 99.0 / 20000.0))
+        self.max_freq = QLineEdit(f"{default_max}")
+        self.freq_max_slide.setValue(int(default_max * 99.0 / 20000.0))
 
         self.freq_min_slide.sliderMoved[int].connect(self.update_min_freq)
         self.freq_max_slide.sliderMoved[int].connect(self.update_max_freq)
@@ -151,7 +163,7 @@ class Window(QMainWindow):
         self.canvas = MplCanvas(self.main_widget, width=5, height=2, dpi=100)
         self.canvas_f = MplCanvas(self.main_widget, width=5, height=2, dpi=100)
 
-        self.init_plots()
+        self.init_canvas()
 
         grid.addWidget(self.canvas, 3, 0, 1, 2)
         grid.addWidget(self.canvas_f, 4, 0, 1, 2)
@@ -159,7 +171,28 @@ class Window(QMainWindow):
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
 
+        self.init_stream()
+
+        self.restart_stream.connect(self.init_stream)
+
         self.show()
+
+    def init_stream(self):
+        dev_sel = self.cbox_dev.currentText()
+        ix_sel = self.devs.index(dev_sel)
+        dev_num = self.devs_ix[ix_sel]
+        dev_rate = int(self.devs_rate[ix_sel])
+        fs = int(dev_rate)
+        self.mic = MicrophoneCapture(dev_num, rate=fs, downsample=self.downsample)
+
+    def start_stream(self):
+        self.mic.start_stream()
+
+    def stop_stream(self):
+        self.mic.stop_stream()
+
+    def close_stream(self):
+        self.mic.close_stream()
 
     def update_min_freq(self, val):
         freq = val * 20000.0 / 99.0
@@ -178,11 +211,15 @@ class Window(QMainWindow):
         self.freq_max_slide.setValue(freq)
 
     def listen_for_signal(self):
+        self.results.clearContents()
+        self.lock_input()
         self.preview.setEnabled(False)
         worker = Worker(self._listen_for_signal)
         self.threadpool.start(worker)
 
     def _listen_for_signal(self):
+        # Close active stream
+        self.close_stream()
         dev_sel = self.cbox_dev.currentText()
         ix_sel = self.devs.index(dev_sel)
         dev_num = self.devs_ix[ix_sel]
@@ -220,21 +257,23 @@ class Window(QMainWindow):
         # gui.status = "Idle..."
         self.statusBar().showMessage('Ready')
         self.preview.setEnabled(True)
+        self.unlock_input()
+        self.restart_stream.emit("Restart")
 
     def start_live_recording(self):
         """Start live plotting of signal."""
-        self.preview.setText("Stop")
-        self.preview.clicked.connect(self.stop_live_preview)
+        self.preview.setEnabled(False)
+        self.preview_stop.setEnabled(True)
 
+        # Get selected device
         dev_sel = self.cbox_dev.currentText()
+        # Get index of the device
         ix_sel = self.devs.index(dev_sel)
-        dev_num = self.devs_ix[ix_sel]
         dev_rate = int(self.devs_rate[ix_sel])
 
         self.statusBar().showMessage('Preview...')
         fs = int(dev_rate)
-        rec_time = 5
-        self.downsample = 10
+        rec_time = self.preview_time
 
         # Plot
         length = int(rec_time * fs / (self.downsample))
@@ -243,57 +282,85 @@ class Window(QMainWindow):
                               stop=rec_time)
 
         ax = self.canvas.axes
-        self.lines = ax.plot(self.live_data, color="C0", lw=0.7)
-        ax.set_xlim(left=0, right=5)
+        self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
+        ax.set_xlim(left=0, right=self.preview_time)
 
-        ax.axis((0, len(self.live_data), -1, 1))
         ax.grid(True)
 
-        self.stream = sd.InputStream(device=dev_num, channels=1, samplerate=fs,
-                                     callback=self.audio_callback)
         self.timer_prev = QtCore.QTimer()
         self.timer_prev.timeout.connect(self.update_live_preview)
-        # self.ani = FuncAnimation(self.canvas.figure, self.update_live_preview,
-        #                      interval=100, blit=True, repeat=False)
-        self.stream.start()
-        self.timer_prev.start(100)
+
+        self.start_stream()
+        self.timer_prev.start(50)
 
     def stop_live_preview(self):
-        # self.ani.event_source.stop()
-        # self.ani._stop()
-        # self.ani._fig = None
         self.timer_prev.setSingleShot(True)
         self.timer_prev.stop()
-        # del self.ani
-        self.stream.stop()
-        self.stream.close()
-        self.preview.setText("Preview")
-        self.preview.clicked.connect(self.start_live_recording)
+        self.timer_prev.deleteLater()
+        self.init_canvas()
+        self.stop_stream()
+        self.close_stream()
+        self.preview.setEnabled(True)
+        self.preview_stop.setEnabled(False)
         self.statusBar().showMessage('Ready...')
+        self.restart_stream.emit("Restart")
 
     def update_live_preview(self):
         while True:
             try:
-                data = q.get_nowait()
+                data = self.mic.q.get_nowait()
             except queue.Empty:
                 break
+
             shift = len(data)
             self.live_data = np.roll(self.live_data, -shift, axis=0)
             self.live_data[-shift:, :] = data
+
         for column, line in enumerate(self.lines):
             line.set_ydata(self.live_data[:, column])
 
         self.canvas.draw()
 
-    def init_plots(self):
+    def lock_input(self):
+        """Lock all the input fields."""
+        input_fields = [
+            self.board_l,
+            self.board_w,
+            self.board_t,
+            self.board_kg,
+        ]
+
+        for field in input_fields:
+            field.setStyleSheet("color: rgb(150, 150, 150);")
+            field.setReadOnly(True)
+
+    def unlock_input(self):
+        """Unlock input fields."""
+        input_fields = [
+            self.board_l,
+            self.board_w,
+            self.board_t,
+            self.board_kg,
+        ]
+
+        for field in input_fields:
+            field.setStyleSheet("color: rgb(0, 0, 0);")
+            field.setReadOnly(False)
+
+    def init_canvas(self):
         """
         Initialize plots.
         """
         ax1 = self.canvas.axes
         ax2 = self.canvas_f.axes
 
+        ax1.cla()
+        ax2.cla()
+
         ax1.set_xlabel("Time [s]")
         ax1.set_ylabel("Velocity [mm/s]")
+
+        ax1.set_xlim(left=0, right=self.preview_time)
 
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
@@ -309,7 +376,50 @@ class Window(QMainWindow):
         if status:
             print(status, file=sys.stderr)
         # Fancy indexing with mapping creates a (necessary!) copy:
-        q.put(indata[::self.downsample, mapping])
+        # self.signal[:] = indata[::self.downsample, 0]
+        self.q.put(indata[::self.downsample, mapping])
+
+
+class MicrophoneCapture:
+    """Manages the stream input.
+
+    Parameters
+    ----------
+    device : TODO
+    rate : TODO
+
+    """
+
+    def __init__(self, device, rate, downsample):
+        """TODO: to be defined.
+
+
+
+        """
+        self.device = device
+        self.rate = rate
+        self.q = queue.Queue()
+        self.downsample = downsample
+
+        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=self.rate,
+                                     callback=self.audio_callback)
+
+    def start_stream(self):
+        self.stream.start()
+
+    def stop_stream(self):
+        self.stream.stop()
+
+    def close_stream(self):
+        self.stream.close()
+
+    def audio_callback(self, indata, frames, time, status):
+        """This is called (from a separate thread) for each audio block."""
+        if status:
+            print(status, file=sys.stderr)
+        # Fancy indexing with mapping creates a (necessary!) copy:
+        # self.signal[:] = indata[::self.downsample, 0]
+        self.q.put(indata[::self.downsample, mapping])
 
 
 class Worker(QRunnable):

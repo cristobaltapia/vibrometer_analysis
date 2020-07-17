@@ -278,7 +278,7 @@ class SignalAnalysis:
 
         rho = weight / (length * width * thick)
 
-        return 4 * length**2 * freq[peaks_ix]**2 * rho
+        return 4 * length**2 * freq[peaks_ix]**2 * rho * 1e-6
 
 
 def main():

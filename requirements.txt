@@ -1,7 +1,6 @@
 astroid==2.4.2
 cffi==1.14.0
 cycler==0.10.0
-guietta==0.3.5
 isort==4.3.21
 kiwisolver==1.2.0
 lazy-object-proxy==1.4.3
@@ -12,6 +11,8 @@ pycparser==2.20
 pydocstyle==5.0.2
 pylint==2.5.3
 pyparsing==2.4.7
+PyQt5==5.15.0
+PyQt5-sip==12.8.0
 PySide2==5.15.0
 python-dateutil==2.8.1
 scipy==1.5.1
