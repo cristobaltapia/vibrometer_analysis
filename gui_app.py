@@ -1,27 +1,29 @@
+import queue
+import random
 import re
 import sys
-
-from vibrometer import SignalAnalysis
-import sounddevice as sd
-from vibrometer import DEV_NAME
+from time import sleep
 
 import matplotlib
-matplotlib.use('Qt5Agg')
-from matplotlib.animation import FuncAnimation
-from PyQt5.QtWidgets import (QApplication, QLabel, QGroupBox, QWidget, QComboBox, QWidget,
-                             QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QGridLayout,
-                             QMainWindow, QFormLayout, QSlider, QTableWidget,
-                             QTableWidgetItem, QTableView)
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import QRunnable, QThreadPool, pyqtSlot, Qt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
-from time import sleep
-import random
-import queue
+import sounddevice as sd
+from matplotlib.animation import FuncAnimation
+from matplotlib.backends.backend_qt5agg import \
+    FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import \
+    NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
+from PyQt5.QtWidgets import (QApplication, QComboBox, QFormLayout, QGridLayout, QGroupBox,
+                             QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton,
+                             QSlider, QTableView, QTableWidget, QTableWidgetItem,
+                             QVBoxLayout, QWidget)
+
+from vibrometer import DEV_NAME, SignalAnalysis
+
+matplotlib.use('Qt5Agg')
 
 mapping = [c - 1 for c in [1]]
 
@@ -45,42 +47,77 @@ class Window(QMainWindow):
     def initUI(self):
         self.statusBar().showMessage('Ready')
         # self.setGeometry(300, 300, 250, 150)
-        self.setWindowTitle('Vibrometer analysis Pro30000')
+        self.setWindowTitle('Vibrometer analysis Pro-30000')
         self.main_widget = QWidget(self)
 
-        grid = QGridLayout(self.main_widget)
-        self.setLayout(grid)
+        #############################################################
+        # Layout
+        main_layout = QVBoxLayout(self.main_widget)
+        self.setLayout(main_layout)
+
+        input_layout = QHBoxLayout()
+        main_layout.addLayout(input_layout)
+
+        left_layout = QVBoxLayout()
+        input_layout.addLayout(left_layout)
+
+        right_layout = QVBoxLayout()
+        input_layout.addLayout(right_layout)
+
+        # Layout for controls
+        group_device = QGroupBox("VIB-E-220")
+        layout_device = QVBoxLayout()
+        form_device = QFormLayout()
+        layout_buttons = QHBoxLayout()
+        layout_dev = QVBoxLayout()
+        group_device.setLayout(layout_device)
+
+        layout_device.addLayout(form_device)
+        layout_device.addLayout(layout_dev)
+        layout_device.addLayout(layout_buttons)
+
+        # Layout for board properties
+        group_board = QGroupBox("Board properties")
+        form_board = QFormLayout()
+        group_board.setLayout(form_board)
+        # form_board.addStretch()
+
+        # Layout for frequency region
+        group_freq = QGroupBox("Frequency range")
+        grid_freq = QGridLayout()
+        group_freq.setLayout(grid_freq)
+
+        # Layout for results
+        group_results = QGroupBox("Results")
+        results_layout = QVBoxLayout()
+        group_results.setLayout(results_layout)
+
+        # Add layouts
+        left_layout.addWidget(group_device)
+        left_layout.addWidget(group_freq)
+
+        right_layout.addWidget(group_board)
+        right_layout.addWidget(group_results)
 
         #############################################################
         # VELO
-        group_velo = QGroupBox("VIB-E-220")
-        layout_1 = QVBoxLayout()
-        form_time = QFormLayout()
-        layout_buttons = QHBoxLayout()
-        layout_dev = QVBoxLayout()
-        layout_1.addLayout(form_time)
-        layout_1.addLayout(layout_dev)
-        layout_1.addLayout(layout_buttons)
-
         self.cbox_vel = QComboBox()
         self.cbox_vel.setFixedWidth(80)
         self.cbox_vel.addItem("20")
         self.cbox_vel.addItem("100")
         self.cbox_vel.addItem("500")
-        form_time.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
+        form_device.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
         # Set default value to "100"
         self.cbox_vel.setCurrentIndex(1)
-        grid.addWidget(group_velo, 0, 0)
         #############################################################
         # Duration
-        group_velo.setLayout(layout_1)
         # group_velo.setLayout(form_time)
         self.rec_time = QLineEdit("0.2")
         self.rec_time.setFixedWidth(80)
-        form_time.addRow(QLabel("Recording time (s):"), self.rec_time)
+        form_device.addRow(QLabel("Recording time (s):"), self.rec_time)
         self.trigger = QLineEdit("0.02")
         self.trigger.setFixedWidth(80)
-        form_time.addRow(QLabel("Trigger sensitivity (mm/s):"), self.trigger)
+        form_device.addRow(QLabel("Trigger sensitivity (mm/s):"), self.trigger)
         # Get list of sound devices
         self.devs = []
         self.devs_ix = []
@@ -116,12 +153,6 @@ class Window(QMainWindow):
 
         #############################################################
         # Board properties
-        group_board = QGroupBox("Board properties")
-        form_board = QFormLayout()
-        # form_board.addStretch()
-        grid.addWidget(group_board, 0, 1)
-        group_board.setLayout(form_board)
-
         self.board_w = QLineEdit("100")
         self.board_t = QLineEdit("30")
         self.board_l = QLineEdit("1000")
@@ -137,12 +168,6 @@ class Window(QMainWindow):
 
         #############################################################
         # Frequency region
-        group_freq = QGroupBox("Frequency range")
-        # layout_freq =
-        grid_freq = QGridLayout()
-        group_freq.setLayout(grid_freq)
-        grid.addWidget(group_freq, 2, 0, 1, 1)
-
         self.freq_min_slide = QSlider(QtCore.Qt.Horizontal)
         self.freq_max_slide = QSlider(QtCore.Qt.Horizontal)
         default_min = 100
@@ -166,15 +191,14 @@ class Window(QMainWindow):
 
         #############################################################
         # Results
-        # self.results = QTableWidget()
-        self.results = QTableView()
         data_results = pd.DataFrame({"Freq. [Hz]": [0], "E_dyn [MPa]": [0]})
         self.data_results = TableModel(data_results)
-        self.results.setModel(self.data_results)
-        header = self.results.horizontalHeader()
-        header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
-        grid.addWidget(self.results)
+        self.results = TableResults(self.data_results)
+        # self.results.setModel(self.data_results)
+        # header = self.results.horizontalHeader()
+        # header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        # header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
+        results_layout.addWidget(self.results)
 
         #############################################################
         # Matplotlib
@@ -183,8 +207,8 @@ class Window(QMainWindow):
 
         self.init_canvas()
 
-        grid.addWidget(self.canvas, 3, 0, 1, 2)
-        grid.addWidget(self.canvas_f, 4, 0, 1, 2)
+        main_layout.addWidget(self.canvas)
+        main_layout.addWidget(self.canvas_f)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
@@ -418,6 +442,20 @@ class Window(QMainWindow):
         # Fancy indexing with mapping creates a (necessary!) copy:
         # self.signal[:] = indata[::self.downsample, 0]
         self.q.put(indata[::self.downsample, mapping])
+
+
+class TableResults(QTableView):
+    def __init__(self, model, parent=None):
+        super(TableResults, self).__init__(parent)
+
+        rowHeight = self.fontMetrics().height()
+        self.verticalHeader().setDefaultSectionSize(rowHeight)
+        self.setModel(model)
+
+    def resizeEvent(self, event):
+        width = event.size().width()
+        self.setColumnWidth(1, width * 0.5)
+        self.setColumnWidth(2, width * 0.5)
 
 
 class MicrophoneCapture:
