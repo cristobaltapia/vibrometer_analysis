@@ -28,6 +28,7 @@ mapping = [c - 1 for c in [1]]
 class Window(QMainWindow):
     """Docstring for Window. """
     restart_stream = QtCore.pyqtSignal(object)
+    device_reload = QtCore.pyqtSignal(object)
 
     def __init__(self):
         """TODO: to be defined. """
@@ -51,8 +52,14 @@ class Window(QMainWindow):
         #############################################################
         # VELO
         group_velo = QGroupBox("VIB-E-220")
+        layout_1 = QVBoxLayout()
         form_time = QFormLayout()
-        group_velo.setLayout(form_time)
+        layout_buttons = QHBoxLayout()
+        layout_dev = QVBoxLayout()
+        layout_1.addLayout(form_time)
+        layout_1.addLayout(layout_dev)
+        layout_1.addLayout(layout_buttons)
+
         self.cbox_vel = QComboBox()
         self.cbox_vel.setFixedWidth(80)
         self.cbox_vel.addItem("20")
@@ -64,7 +71,8 @@ class Window(QMainWindow):
         grid.addWidget(group_velo, 0, 0)
         #############################################################
         # Duration
-        group_velo.setLayout(form_time)
+        group_velo.setLayout(layout_1)
+        # group_velo.setLayout(form_time)
         self.rec_time = QLineEdit("0.2")
         self.rec_time.setFixedWidth(80)
         form_time.addRow(QLabel("Recording time (s):"), self.rec_time)
@@ -76,25 +84,32 @@ class Window(QMainWindow):
         self.devs_ix = []
         self.devs_rate = []
         for ix, dev in enumerate(sd.query_devices()):
-            self.devs.append(dev["name"])
-            self.devs_ix.append(ix)
-            self.devs_rate.append(dev["default_samplerate"])
+            if dev["default_low_input_latency"] != -1:
+                self.devs.append(dev["name"])
+                self.devs_ix.append(ix)
+                self.devs_rate.append(dev["default_samplerate"])
 
         self.cbox_dev = QComboBox()
         for dev_i in self.devs:
             self.cbox_dev.addItem(dev_i)
 
-        self.cbox_dev.setFixedWidth(100)
-        form_time.addRow(QLabel("Device:"), self.cbox_dev)
+        self.cbox_dev.currentIndexChanged.connect(self._reload_device)
+
+        self.cbox_dev.setFixedWidth(300)
+        # form_time.addRow(QLabel("Device:"), self.cbox_dev)
+        layout_dev.addWidget(QLabel("Device:"))
+        layout_dev.addWidget(self.cbox_dev)
 
         self.start = QPushButton("Start")
         self.start.clicked.connect(self.listen_for_signal)
+        self.start.setStyleSheet("background-color: rgb(44, 160, 44);")
         self.preview = QPushButton("Preview")
-        self.preview.clicked.connect(self.start_live_recording)
+        self.preview.clicked.connect(self.start_live_preview)
         self.preview_stop = QPushButton("Stop")
         self.preview_stop.clicked.connect(self.stop_live_preview)
-        form_time.addRow(self.preview, self.preview_stop)
-        form_time.addRow(self.start, QLabel(""))
+        layout_buttons.addWidget(self.start)
+        layout_buttons.addWidget(self.preview)
+        layout_buttons.addWidget(self.preview_stop)
         self.preview_stop.setEnabled(False)
 
         #############################################################
@@ -174,6 +189,7 @@ class Window(QMainWindow):
         self.init_stream()
 
         self.restart_stream.connect(self.init_stream)
+        self.device_reload.connect(self.reload_device)
 
         self.show()
 
@@ -194,6 +210,13 @@ class Window(QMainWindow):
     def close_stream(self):
         self.mic.close_stream()
 
+    def reload_device(self):
+        self.close_stream()
+        self.init_stream()
+
+    def _reload_device(self):
+        self.device_reload.emit("Reload device")
+
     def update_min_freq(self, val):
         freq = val * 20000.0 / 99.0
         self.min_freq.setText(f"{freq:1.0f}")
@@ -211,6 +234,7 @@ class Window(QMainWindow):
         self.freq_max_slide.setValue(freq)
 
     def listen_for_signal(self):
+        self.start.setEnabled(False)
         self.results.clearContents()
         self.lock_input()
         self.preview.setEnabled(False)
@@ -259,10 +283,13 @@ class Window(QMainWindow):
         self.preview.setEnabled(True)
         self.unlock_input()
         self.restart_stream.emit("Restart")
+        self.start.setEnabled(True)
 
-    def start_live_recording(self):
+    def start_live_preview(self):
         """Start live plotting of signal."""
         self.preview.setEnabled(False)
+        self.start.setEnabled(False)
+        self.cbox_dev.setEnabled(False)
         self.preview_stop.setEnabled(True)
 
         # Get selected device
@@ -300,8 +327,11 @@ class Window(QMainWindow):
         self.init_canvas()
         self.stop_stream()
         self.close_stream()
+        # Change status of buttons
         self.preview.setEnabled(True)
         self.preview_stop.setEnabled(False)
+        self.start.setEnabled(True)
+        self.cbox_dev.setEnabled(True)
         self.statusBar().showMessage('Ready...')
         self.restart_stream.emit("Restart")
 
@@ -334,6 +364,8 @@ class Window(QMainWindow):
             field.setStyleSheet("color: rgb(150, 150, 150);")
             field.setReadOnly(True)
 
+        self.cbox_dev.setEnabled(False)
+
     def unlock_input(self):
         """Unlock input fields."""
         input_fields = [
@@ -346,6 +378,8 @@ class Window(QMainWindow):
         for field in input_fields:
             field.setStyleSheet("color: rgb(0, 0, 0);")
             field.setReadOnly(False)
+
+        self.cbox_dev.setEnabled(True)
 
     def init_canvas(self):
         """
@@ -361,6 +395,7 @@ class Window(QMainWindow):
         ax1.set_ylabel("Velocity [mm/s]")
 
         ax1.set_xlim(left=0, right=self.preview_time)
+        ax1.grid(True)
 
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
