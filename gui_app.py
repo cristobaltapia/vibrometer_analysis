@@ -294,6 +294,7 @@ class Window(QMainWindow):
         self.cbox_dev.setEnabled(False)
         self.preview_stop.setEnabled(True)
 
+        self.init_canvas()
         # Get selected device
         dev_sel = self.cbox_dev.currentText()
         # Get index of the device
