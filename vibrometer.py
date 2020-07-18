@@ -92,6 +92,8 @@ class SignalAnalysis:
         print("Recording...")
 
         print("Waiting for impulse...")
+        if progress:
+            progress.setVisible(True)
         t_i = time()
         while True:
             if progress:
@@ -130,6 +132,7 @@ class SignalAnalysis:
         if progress:
             # Reset progress bar
             progress.setValue(0)
+            progress.setVisible(False)
 
         return data, time_
 

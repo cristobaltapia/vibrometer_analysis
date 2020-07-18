@@ -16,10 +16,12 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
-                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-                             QMainWindow, QProgressBar, QPushButton, QSlider, QTableView,
-                             QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
+                             QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
+                             QLabel, QLineEdit, QMainWindow, QProgressBar,
+                             QPushButton, QSizePolicy, QSlider, QTableView,
+                             QTableWidget, QTableWidgetItem, QVBoxLayout,
+                             QWidget)
 
 from vibrometer import DEV_NAME, SignalAnalysis
 
@@ -168,6 +170,10 @@ class Window(QMainWindow):
         self.progress.setGeometry(0, 0, 300, 15)
         self.progress.setTextVisible(False)
         self.progress.setValue(0)
+        size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        size_policy.setRetainSizeWhenHidden(True)
+        self.progress.setSizePolicy(size_policy)
+        self.progress.setVisible(False)
         layout_device.addWidget(self.progress)
 
         #############################################################
