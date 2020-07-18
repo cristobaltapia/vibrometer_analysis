@@ -16,18 +16,15 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
-                             QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
-                             QLabel, QLineEdit, QMainWindow, QProgressBar,
-                             QPushButton, QSizePolicy, QSlider, QTableView,
-                             QTableWidget, QTableWidgetItem, QVBoxLayout,
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
+                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                             QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
+                             QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
                              QWidget)
 
-from vibrometer import DEV_NAME, SignalAnalysis
+from vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
 
 matplotlib.use('Qt5Agg')
-
-mapping = [c - 1 for c in [1]]
 
 
 class Window(QMainWindow):
@@ -35,6 +32,7 @@ class Window(QMainWindow):
     restart_stream = QtCore.pyqtSignal(object)
     device_reload = QtCore.pyqtSignal(object)
     sig_unlock = QtCore.pyqtSignal(object)
+    sig_device_velo = QtCore.pyqtSignal(object)
 
     def __init__(self):
         """TODO: to be defined. """
@@ -44,6 +42,7 @@ class Window(QMainWindow):
         self.downsample = 20
         self.preview_time = 5
         self.wait_time = 10
+        self.dev_velo = None
 
         self.initUI()
 
@@ -111,6 +110,8 @@ class Window(QMainWindow):
         form_device.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
         # Set default value to "100"
         self.cbox_vel.setCurrentIndex(1)
+        self.dev_velo = 100.0
+        self.cbox_vel.currentIndexChanged.connect(self.update_device_velo)
 
         #############################################################
         # Duration
@@ -254,9 +255,11 @@ class Window(QMainWindow):
 
         self.init_stream()
 
-        self.restart_stream.connect(self.init_stream)
-        self.device_reload.connect(self.reload_device)
+        # Signal handling
+        self.sig_stream_restart.connect(self.init_stream)
+        self.sig_device_reload.connect(self.reload_device)
         self.sig_unlock.connect(self.unlock_input)
+        self.sig_device_velo.connect(self.update_device_velo)
 
         self.show()
 
@@ -266,7 +269,10 @@ class Window(QMainWindow):
         dev_num = self.devs_ix[ix_sel]
         dev_rate = int(self.devs_rate[ix_sel])
         fs = int(dev_rate)
-        self.mic = MicrophoneCapture(dev_num, rate=fs, downsample=self.downsample)
+        dev_velo = self.dev_velo
+
+        self.mic = VibrometerCapture(dev_num, rate=fs, velo=dev_velo,
+                                     downsample=self.downsample)
 
     def start_stream(self):
         self.mic.start_stream()
@@ -282,7 +288,13 @@ class Window(QMainWindow):
         self.init_stream()
 
     def _reload_device(self):
-        self.device_reload.emit("Reload device")
+        self.sig_device_reload.emit("Reload device")
+
+    def update_device_velo(self):
+        """Update the valocity configured in the device."""
+        self.dev_velo = float(self.cbox_vel.currentText())
+        self.close_stream()
+        self.init_stream()
 
     def update_min_freq(self, val):
         freq = int(val * 20000.0 / 99.0)
@@ -361,7 +373,7 @@ class Window(QMainWindow):
         self.statusBar().showMessage('Ready')
         self.preview.setEnabled(True)
         self.sig_unlock.emit("Unlock")
-        self.restart_stream.emit("Restart")
+        self.sig_stream_restart.emit("Restart")
         self.start.setEnabled(True)
 
     def start_live_preview(self):
@@ -378,16 +390,15 @@ class Window(QMainWindow):
         ix_sel = self.devs.index(dev_sel)
         dev_rate = int(self.devs_rate[ix_sel])
 
-        self.statusBar().showMessage('Preview...')
-        fs = int(dev_rate)
+        rate = int(dev_rate)
         rec_time = self.preview_time
 
         # Plot
-        length = int(rec_time * fs / (self.downsample))
+        self.init_canvas()
+        length = int(rec_time * rate / (self.downsample))
         self.live_data = np.zeros((length, 1))
         self.time = np.arange(start=0, step=float(self.downsample) / float(fs),
                               stop=rec_time)
-
         ax = self.canvas.axes
         self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
         ax.set_xlim(left=0, right=self.preview_time)
@@ -412,8 +423,9 @@ class Window(QMainWindow):
         self.preview_stop.setEnabled(False)
         self.start.setEnabled(True)
         self.cbox_dev.setEnabled(True)
+        self.cbox_vel.setEnabled(True)
         self.statusBar().showMessage('Ready...')
-        self.restart_stream.emit("Restart")
+        self.sig_stream_restart.emit("Restart")
 
     def update_live_preview(self):
         while True:
@@ -507,47 +519,6 @@ class TableResults(QTableView):
         width = event.size().width()
         self.setColumnWidth(1, width * 0.5)
         self.setColumnWidth(2, width * 0.5)
-
-
-class MicrophoneCapture:
-    """Manages the stream input.
-
-    Parameters
-    ----------
-    device : TODO
-    rate : TODO
-
-    """
-    def __init__(self, device, rate, downsample):
-        """TODO: to be defined.
-
-
-
-        """
-        self.device = device
-        self.rate = rate
-        self.q = queue.Queue()
-        self.downsample = downsample
-
-        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=self.rate,
-                                     callback=self.audio_callback)
-
-    def start_stream(self):
-        self.stream.start()
-
-    def stop_stream(self):
-        self.stream.stop()
-
-    def close_stream(self):
-        self.stream.close()
-
-    def audio_callback(self, indata, frames, time, status):
-        """This is called (from a separate thread) for each audio block."""
-        if status:
-            print(status, file=sys.stderr)
-        # Fancy indexing with mapping creates a (necessary!) copy:
-        # self.signal[:] = indata[::self.downsample, 0]
-        self.q.put(indata[::self.downsample, mapping])
 
 
 class TableModel(QtCore.QAbstractTableModel):

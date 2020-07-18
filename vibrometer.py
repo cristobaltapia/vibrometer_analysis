@@ -1,12 +1,15 @@
 import re
+import sys
 from time import sleep, time
+from threading import Thread, Timer
 
+import matplotlib as mpl  # isort: skip
+import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 from numpy.fft import fft, fftfreq, fftshift
-from scipy.signal import blackman, find_peaks, hanning, hamming
+from scipy.signal import blackman, find_peaks, hamming, hanning
 
-import matplotlib as mpl # isort: skip
 # Add the following befor importing pyplot:
 rc_params_gruyter = {
     "figure.figsize": (2.8, 2.0),
@@ -20,8 +23,8 @@ rc_params_gruyter = {
     # "pgf.rcfonts": False,
      }
 mpl.rcParams.update(rc_params_gruyter)
-import matplotlib.pyplot as plt
 
+mapping = [c - 1 for c in [1]]
 
 # Board dimensions
 W = 100.0
@@ -66,6 +69,7 @@ class SignalAnalysis:
         self._freq = None
         self._psd = None
         self._peaks_ix = None
+        self.prev_sig_ix = 0
 
     def wait_and_record(self, duration, total_recording, thress, progress=None):
         """Start recording and return the signal after an impulse is given.
@@ -85,45 +89,57 @@ class SignalAnalysis:
         # Parameters
         sd.default.device = self._device
 
-        fs = int(self._sample_rate)
+        rate = int(self._sample_rate)
 
-        recording = sd.rec(total_recording * fs, samplerate=fs, channels=1, blocking=False)
+        length = int(total_recording * rate)
+        self.live_data = np.zeros((length, 1))
+
+        # Initialize a Vibrometer Capture object
+        self.vibro = VibrometerCapture(device=self._device, rate=rate, velo=self._velo,
+                                       downsample=1)
+        self.vibro.start_stream()
+
+        timer_capture = Timer(interval=1, function=self.update_signal)
+        timer_capture.start()
+
         print("------------------")
         print("Recording...")
-
         print("Waiting for impulse...")
-        if progress:
-            progress.setVisible(True)
-        t_i = time()
+
+        extra_time = 0.01
+
+        t_init = time()
+
         while True:
             if progress:
-                progress.setValue(time() - t_i)
-            ix = np.argmax(np.abs(recording[:, 0]))
-            val = np.abs(recording[ix, 0])
+                progress.setValue(time() - t_init)
+
+            ix = np.argmax(np.abs(self.live_data[:, 0]))
+            val = np.abs(self.live_data[ix, 0])
+
             if val > thress:
                 print("Impulse detected!...")
                 break
-            if time() - t_i > total_recording:
+            if time() - t_init > total_recording:
                 break
             sleep(0.01)
 
-        extra_time = 0.02
-        ix = ix + int(fs * extra_time)
+        ix = ix + int(rate * extra_time)
         sleep(duration + extra_time)
 
-        sd.stop()
+        self.vibro.stop_stream()
+        self.vibro.close_stream()
+        timer_capture.cancel()
+
         print("Stop recording...")
 
-        data = recording[ix:ix + int((duration + extra_time) * fs)]
+        data = self.live_data[ix:ix+int(rate * duration):, 0]
         data = data.reshape((-1, ))
 
         # Remove mean
         data = data - np.mean(data)
 
-        # Scale of the signal to obtain mm/s
-        data = data * self._velo / 4.0
-
-        time_ = np.arange(start=0, step=1.0 / fs, stop=len(data) / fs)
+        time_ = np.arange(start=0, step=1.0 / rate, stop=len(data) / rate)
 
         self._data = data
         self._time = time_
@@ -161,8 +177,8 @@ class SignalAnalysis:
         ix_min = np.argmin(np.abs(freq - min_freq))
         ix_max = np.argmin(np.abs(freq - max_freq))
 
-        psd = psd[ix_min: ix_max+1]
-        freq = freq[ix_min: ix_max+1]
+        psd = psd[ix_min:ix_max + 1]
+        freq = freq[ix_min:ix_max + 1]
 
         # Obtain the three most relevant frequencies
         height = np.max(psd) * 0.3
@@ -257,6 +273,25 @@ class SignalAnalysis:
         ax2.figure.tight_layout()
         ax2.figure.canvas.draw()
 
+    def update_signal(self):
+        """TODO: Docstring for update_signal.
+        Returns
+        -------
+        TODO
+
+        """
+        while True:
+            try:
+                data = self.vibro.q.get_nowait()
+            except queue.Empty:
+                break
+
+            ix_last = self.prev_sig_ix
+            self.live_data[ix_last:(ix_last + len(data)), :] = data
+            self.prev_sig_ix += len(data)
+
+        return True
+
     @property
     def n_points(self):
         """TODO: Docstring for n_points.
@@ -290,6 +325,48 @@ class SignalAnalysis:
         return 4 * length**2 * freq[peaks_ix]**2 * rho * 1e-6
 
 
+class VibrometerCapture:
+    """Manages the stream input.
+
+    Parameters
+    ----------
+    device : TODO
+    rate : TODO
+
+    """
+    def __init__(self, device, rate, velo, downsample):
+        """TODO: to be defined.
+
+
+
+        """
+        self.device = device
+        self.rate = rate
+        self.velo = velo
+        self.q = queue.Queue()
+        self.downsample = downsample
+
+        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=self.rate,
+                                     callback=self.audio_callback)
+
+    def start_stream(self):
+        self.stream.start()
+
+    def stop_stream(self):
+        self.stream.stop()
+
+    def close_stream(self):
+        self.stream.close()
+
+    def audio_callback(self, indata, frames, time, status):
+        """This is called (from a separate thread) for each audio block."""
+        if status:
+            print(status, file=sys.stderr)
+        # Fancy indexing with mapping creates a (necessary!) copy:
+        scale_factor = self.velo / 4.0
+        self.q.put(indata[::self.downsample, mapping] * scale_factor)
+
+
 def main():
     # Parameters
     dev_num = None
@@ -303,8 +380,8 @@ def main():
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
-    vib_data, time_ = vib_analysis.wait_and_record(duration=REC_TIME,
-            total_recording=20, thress=THRESSHOLD)
+    vib_data, time_ = vib_analysis.wait_and_record(duration=REC_TIME, total_recording=20,
+                                                   thress=THRESSHOLD)
 
     vib_analysis.compute_frequencies()
 
