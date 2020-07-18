@@ -14,12 +14,12 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.backends.backend_qt5agg import \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QFormLayout, QGridLayout, QGroupBox,
-                             QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton,
-                             QSlider, QTableView, QTableWidget, QTableWidgetItem,
-                             QVBoxLayout, QWidget, QDoubleSpinBox)
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
+                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                             QMainWindow, QProgressBar, QPushButton, QSlider, QTableView,
+                             QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from vibrometer import DEV_NAME, SignalAnalysis
 
@@ -41,6 +41,7 @@ class Window(QMainWindow):
         self.q = queue.Queue()
         self.downsample = 20
         self.preview_time = 5
+        self.wait_time = 10
 
         self.initUI()
 
@@ -162,6 +163,12 @@ class Window(QMainWindow):
         layout_buttons.addWidget(self.preview)
         layout_buttons.addWidget(self.preview_stop)
         self.preview_stop.setEnabled(False)
+        self.progress = QProgressBar()
+        self.progress.setMaximum(self.wait_time)
+        self.progress.setGeometry(0, 0, 300, 15)
+        self.progress.setTextVisible(False)
+        self.progress.setValue(0)
+        layout_device.addWidget(self.progress)
 
         #############################################################
         # Board properties
@@ -322,7 +329,8 @@ class Window(QMainWindow):
 
         vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=velo)
         # Record signal after impulse
-        vib_analysis.wait_and_record(duration=rec_time, total_recording=10, thress=thress)
+        vib_analysis.wait_and_record(duration=rec_time, total_recording=self.wait_time,
+                                     thress=thress, progress=self.progress)
 
         max_freq = int(self.max_freq.value())
         min_freq = int(self.min_freq.value())
@@ -339,13 +347,11 @@ class Window(QMainWindow):
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
 
-        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes},
-                dtype=np.int)
+        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=np.int)
         self.data_results = TableModel(data_results)
         self.results.setModel(self.data_results)
 
         vib_analysis.make_plot_gui(self.canvas.axes, self.canvas_f.axes)
-        # gui.status = "Idle..."
         self.statusBar().showMessage('Ready')
         self.preview.setEnabled(True)
         self.sig_unlock.emit("Unlock")

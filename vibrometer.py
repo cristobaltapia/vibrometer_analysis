@@ -67,7 +67,7 @@ class SignalAnalysis:
         self._psd = None
         self._peaks_ix = None
 
-    def wait_and_record(self, duration, total_recording, thress):
+    def wait_and_record(self, duration, total_recording, thress, progress=None):
         """Start recording and return the signal after an impulse is given.
 
         Parameters
@@ -94,6 +94,8 @@ class SignalAnalysis:
         print("Waiting for impulse...")
         t_i = time()
         while True:
+            if progress:
+                progress.setValue(time() - t_i)
             ix = np.argmax(np.abs(recording[:, 0]))
             val = np.abs(recording[ix, 0])
             if val > thress:
@@ -124,6 +126,10 @@ class SignalAnalysis:
         self._data = data
         self._time = time_
         self._n_points = len(data)
+
+        if progress:
+            # Reset progress bar
+            progress.setValue(0)
 
         return data, time_
 
