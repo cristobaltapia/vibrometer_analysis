@@ -511,6 +511,8 @@ class Window(QMainWindow):
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
 
+        ax2.set_xlim(left=self.min_freq.value(), right=self.max_freq.value())
+
         self.canvas.figure.tight_layout()
         self.canvas_f.figure.tight_layout()
 
