@@ -1,8 +1,5 @@
 import queue
-import random
-import re
 import sys
-from time import sleep
 
 import matplotlib
 import numpy as np
@@ -11,15 +8,14 @@ import sounddevice as sd
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import \
-    NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
-                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-                             QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
-                             QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
+                             QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
+                             QLabel, QLineEdit, QMainWindow, QProgressBar,
+                             QPushButton, QSizePolicy, QSlider, QTableView,
+                             QTableWidget, QTableWidgetItem, QVBoxLayout,
                              QWidget)
 
 from vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture

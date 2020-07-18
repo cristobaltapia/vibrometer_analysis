@@ -2,13 +2,13 @@ import queue
 import re
 import sys
 from time import sleep, time
-from threading import Thread, Timer
+from threading import Timer
 
 import matplotlib as mpl  # isort: skip
 import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
-from numpy.fft import fft, fftfreq, fftshift
+from numpy.fft import fft, fftfreq
 from scipy.signal import blackman, find_peaks, hamming, hanning
 
 # Add the following befor importing pyplot:
