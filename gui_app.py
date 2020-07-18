@@ -281,15 +281,23 @@ class Window(QMainWindow):
 
     def update_min_freq_val(self, val):
         slider = val * 99.0 / 20000.0
-        self.min_freq.valueChanged.disconnect()
-        self.freq_min_slide.setValue(slider)
-        self.min_freq.valueChanged.connect(self.update_min_freq_val)
+        max_slider = 99.0 - self.freq_max_slide.value()
+        if slider >= max_slider:
+            self.freq_min_slide.setValue(max_slider)
+        else:
+            self.min_freq.valueChanged.disconnect()
+            self.freq_min_slide.setValue(slider)
+            self.min_freq.valueChanged.connect(self.update_min_freq_val)
 
     def update_max_freq_val(self, val):
         slider = (20000 - float(val)) * (99.0) / 20000.0
-        self.max_freq.valueChanged.disconnect()
-        self.freq_max_slide.setValue(slider)
-        self.max_freq.valueChanged.connect(self.update_max_freq_val)
+        min_slider = 99.0 - self.freq_min_slide.value()
+        if slider >= min_slider:
+            self.freq_max_slide.setValue(min_slider)
+        else:
+            self.max_freq.valueChanged.disconnect()
+            self.freq_max_slide.setValue(slider)
+            self.max_freq.valueChanged.connect(self.update_max_freq_val)
 
     def listen_for_signal(self):
         self.start.setEnabled(False)
