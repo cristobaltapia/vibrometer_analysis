@@ -21,7 +21,7 @@ rc_params_gruyter = {
     # "lines.linewidth": 1.0,
     # "lines.markersize": 5,
     # "pgf.rcfonts": False,
-     }
+}
 mpl.rcParams.update(rc_params_gruyter)
 
 mapping = [c - 1 for c in [1]]

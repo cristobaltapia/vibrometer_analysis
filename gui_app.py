@@ -29,8 +29,8 @@ matplotlib.use('Qt5Agg')
 
 class Window(QMainWindow):
     """Docstring for Window. """
-    restart_stream = QtCore.pyqtSignal(object)
-    device_reload = QtCore.pyqtSignal(object)
+    sig_stream_restart = QtCore.pyqtSignal(object)
+    sig_device_reload = QtCore.pyqtSignal(object)
     sig_unlock = QtCore.pyqtSignal(object)
     sig_device_velo = QtCore.pyqtSignal(object)
 
@@ -381,9 +381,10 @@ class Window(QMainWindow):
         self.preview.setEnabled(False)
         self.start.setEnabled(False)
         self.cbox_dev.setEnabled(False)
+        self.cbox_vel.setEnabled(False)
         self.preview_stop.setEnabled(True)
+        self.statusBar().showMessage('Preview...')
 
-        self.init_canvas()
         # Get selected device
         dev_sel = self.cbox_dev.currentText()
         # Get index of the device
@@ -397,11 +398,12 @@ class Window(QMainWindow):
         self.init_canvas()
         length = int(rec_time * rate / (self.downsample))
         self.live_data = np.zeros((length, 1))
-        self.time = np.arange(start=0, step=float(self.downsample) / float(fs),
+        self.time = np.arange(start=0, step=float(self.downsample) / float(rate),
                               stop=rec_time)
         ax = self.canvas.axes
         self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
         ax.set_xlim(left=0, right=self.preview_time)
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
 
         ax.grid(True)
 
