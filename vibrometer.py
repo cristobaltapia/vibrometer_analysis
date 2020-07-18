@@ -1,3 +1,4 @@
+import queue
 import re
 import sys
 from time import sleep, time
@@ -105,6 +106,9 @@ class SignalAnalysis:
         print("------------------")
         print("Recording...")
         print("Waiting for impulse...")
+        if progress:
+            # Reset progress bar
+            progress.setVisible(True)
 
         extra_time = 0.01
 
