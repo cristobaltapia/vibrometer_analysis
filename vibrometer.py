@@ -110,7 +110,7 @@ class SignalAnalysis:
             # Reset progress bar
             progress.setVisible(True)
 
-        extra_time = 0.01
+        extra_time = 0.005
 
         t_init = time()
 
@@ -134,6 +134,8 @@ class SignalAnalysis:
         self.vibro.stop_stream()
         self.vibro.close_stream()
         timer_capture.cancel()
+        # One last call to update the signal results
+        self.update_signal()
 
         print("Stop recording...")
 
