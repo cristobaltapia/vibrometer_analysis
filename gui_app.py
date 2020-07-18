@@ -183,10 +183,10 @@ class Window(QMainWindow):
         self.board_t = QLineEdit("30")
         self.board_l = QLineEdit("1000")
         self.board_kg = QLineEdit("500")
-        self.board_w.setFixedWidth(100)
-        self.board_t.setFixedWidth(100)
-        self.board_l.setFixedWidth(100)
-        self.board_kg.setFixedWidth(100)
+        self.board_w.setFixedWidth(70)
+        self.board_t.setFixedWidth(70)
+        self.board_l.setFixedWidth(70)
+        self.board_kg.setFixedWidth(70)
         form_board.addRow(QLabel("Width (mm):"), self.board_w)
         form_board.addRow(QLabel("Thickness (mm):"), self.board_t)
         form_board.addRow(QLabel("Length (mm):"), self.board_l)
@@ -205,25 +205,25 @@ class Window(QMainWindow):
         default_min = 100
         default_max = 4000
         self.min_freq = QDoubleSpinBox()
-        self.freq_min_slide.setValue(int(default_min * 99.0 / 20000.0))
         self.min_freq.setFixedWidth(80)
         self.min_freq.setDecimals(0)
         self.min_freq.setRange(0, 20000)
-        self.min_freq.setValue(default_min)
         self.min_freq.setSingleStep(50)
 
         self.max_freq = QDoubleSpinBox()
-        self.freq_max_slide.setValue(int(99.0 - default_max * 99.0 / 20000.0))
         self.max_freq.setFixedWidth(80)
         self.max_freq.setDecimals(0)
         self.max_freq.setRange(0, 20000)
-        self.max_freq.setValue(default_max)
         self.max_freq.setSingleStep(50)
 
         self.freq_min_slide.sliderMoved[int].connect(self.update_min_freq)
         self.freq_max_slide.sliderMoved[int].connect(self.update_max_freq)
-        self.min_freq.valueChanged.connect(self.update_min_freq_val)
-        self.max_freq.valueChanged.connect(self.update_max_freq_val)
+        self.min_freq.valueChanged.connect(self.update_min_freq_slider)
+        self.min_freq.textChanged.connect(self.update_min_freq_region)
+        self.max_freq.valueChanged.connect(self.update_max_freq_slider)
+        self.max_freq.textChanged.connect(self.update_max_freq_region)
+        self.freq_min_slide.sliderReleased.connect(self.update_min_freq_region)
+        self.freq_max_slide.sliderReleased.connect(self.update_max_freq_region)
 
         # Set validators
         grid_freq.addWidget(QLabel("Min freq. (Hz):"), 0, 0)
@@ -260,6 +260,13 @@ class Window(QMainWindow):
         self.sig_device_reload.connect(self.reload_device)
         self.sig_unlock.connect(self.unlock_input)
         self.sig_device_velo.connect(self.update_device_velo)
+
+        #############################################################
+        # Set some default values
+        self.freq_min_slide.setValue(int(default_min * 99.0 / 20000.0))
+        self.min_freq.setValue(default_min)
+        self.freq_max_slide.setValue(int(99.0 - default_max * 99.0 / 20000.0))
+        self.max_freq.setValue(default_max)
 
         self.show()
 
@@ -304,7 +311,7 @@ class Window(QMainWindow):
         freq = 20000 - val * 20000.0 / 99.0
         self.max_freq.setValue(freq)
 
-    def update_min_freq_val(self, val):
+    def update_min_freq_slider(self, val):
         slider = val * 99.0 / 20000.0
         max_slider = 99.0 - self.freq_max_slide.value()
         if slider >= max_slider:
@@ -312,9 +319,9 @@ class Window(QMainWindow):
         else:
             self.min_freq.valueChanged.disconnect()
             self.freq_min_slide.setValue(slider)
-            self.min_freq.valueChanged.connect(self.update_min_freq_val)
+            self.min_freq.valueChanged.connect(self.update_min_freq_slider)
 
-    def update_max_freq_val(self, val):
+    def update_max_freq_slider(self, val):
         slider = (20000 - float(val)) * (99.0) / 20000.0
         min_slider = 99.0 - self.freq_min_slide.value()
         if slider >= min_slider:
@@ -322,7 +329,21 @@ class Window(QMainWindow):
         else:
             self.max_freq.valueChanged.disconnect()
             self.freq_max_slide.setValue(slider)
-            self.max_freq.valueChanged.connect(self.update_max_freq_val)
+            self.max_freq.valueChanged.connect(self.update_max_freq_slider)
+
+    def update_min_freq_region(self):
+        """Update the x-axis of the matplotlib canvas."""
+        if not self.freq_min_slide.isSliderDown():
+            slider = self.min_freq.value()
+            self.canvas_f.axes.set_xlim(left=slider)
+            self.canvas_f.draw()
+
+    def update_max_freq_region(self):
+        """Update the x-axis of the matplotlib canvas."""
+        if not self.freq_max_slide.isSliderDown():
+            slider = self.max_freq.value()
+            self.canvas_f.axes.set_xlim(right=slider)
+            self.canvas_f.draw()
 
     def listen_for_signal(self):
         self.start.setEnabled(False)
