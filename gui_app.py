@@ -277,17 +277,8 @@ class Window(QMainWindow):
         self.mic = VibrometerCapture(dev_num, rate=fs, velo=dev_velo,
                                      downsample=self.downsample)
 
-    def start_stream(self):
-        self.mic.start_stream()
-
-    def stop_stream(self):
-        self.mic.stop_stream()
-
-    def close_stream(self):
-        self.mic.close_stream()
-
     def reload_device(self):
-        self.close_stream()
+        self.mic.close_stream()
         self.init_stream()
 
     def _reload_device(self):
@@ -296,7 +287,7 @@ class Window(QMainWindow):
     def update_device_velo(self):
         """Update the valocity configured in the device."""
         self.dev_velo = float(self.cbox_vel.currentText())
-        self.close_stream()
+        self.mic.close_stream()
         self.init_stream()
 
     def update_min_freq(self, val):
@@ -350,7 +341,7 @@ class Window(QMainWindow):
 
     def _listen_for_signal(self):
         # Close active stream
-        self.close_stream()
+        self.mic.close_stream()
         dev_sel = self.cbox_dev.currentText()
         ix_sel = self.devs.index(dev_sel)
         dev_num = self.devs_ix[ix_sel]
@@ -421,22 +412,17 @@ class Window(QMainWindow):
         self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
         ax.set_xlim(left=0, right=self.preview_time)
         ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
-
         ax.grid(True)
 
-        self.timer_prev = QtCore.QTimer()
-        self.timer_prev.timeout.connect(self.update_live_preview)
+        self.ani = FuncAnimation(self.canvas.figure, self.update_live_preview, interval=50, blit=True)
 
-        self.start_stream()
-        self.timer_prev.start(50)
+        self.mic.start_stream()
 
     def stop_live_preview(self):
-        self.timer_prev.setSingleShot(True)
-        self.timer_prev.stop()
-        self.timer_prev.deleteLater()
+        self.ani.event_source.stop()
         self.init_canvas()
-        self.stop_stream()
-        self.close_stream()
+        self.mic.stop_stream()
+        self.mic.close_stream()
         # Change status of buttons
         self.preview.setEnabled(True)
         self.preview_stop.setEnabled(False)
@@ -446,7 +432,7 @@ class Window(QMainWindow):
         self.statusBar().showMessage('Ready...')
         self.sig_stream_restart.emit("Restart")
 
-    def update_live_preview(self):
+    def update_live_preview(self, frame):
         while True:
             try:
                 data = self.mic.q.get_nowait()
@@ -460,7 +446,8 @@ class Window(QMainWindow):
         for column, line in enumerate(self.lines):
             line.set_ydata(self.live_data[:, column])
 
-        self.canvas.draw()
+        return self.lines
+        # self.canvas.draw()
 
     def lock_input(self):
         """Lock all the input fields."""
