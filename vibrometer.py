@@ -87,12 +87,9 @@ class SignalAnalysis:
         """
         total_recording = int(total_recording)
 
-        # Parameters
-        sd.default.device = self._device
-
         rate = int(self._sample_rate)
 
-        length = int(total_recording * rate)
+        length = int((total_recording + 1) * rate)
         self.live_data = np.zeros((length, 1))
 
         # Initialize a Vibrometer Capture object
@@ -113,6 +110,7 @@ class SignalAnalysis:
         extra_time = 0.005
 
         t_init = time()
+        impact_detected = False
 
         while True:
             if progress:
@@ -123,6 +121,7 @@ class SignalAnalysis:
 
             if val > thress:
                 print("Impulse detected!...")
+                impact_detected = True
                 break
             if time() - t_init > total_recording:
                 break
@@ -139,12 +138,10 @@ class SignalAnalysis:
 
         print("Stop recording...")
 
-        data = self.live_data[ix:ix+int(rate * duration):, 0]
+        data = self.live_data[ix:ix + int(rate * duration):, 0]
         data = data.reshape((-1, ))
-
         # Remove mean
         data = data - np.mean(data)
-
         time_ = np.arange(start=0, step=1.0 / rate, stop=len(data) / rate)
 
         self._data = data
@@ -156,7 +153,7 @@ class SignalAnalysis:
             progress.setValue(0)
             progress.setVisible(False)
 
-        return data, time_
+        return impact_detected
 
     def compute_frequencies(self, min_freq=0, max_freq=20000):
         """TODO: Docstring for compute_frequencies.
@@ -187,8 +184,8 @@ class SignalAnalysis:
         freq = freq[ix_min:ix_max + 1]
 
         # Obtain the three most relevant frequencies
-        height = np.max(psd) * 0.3
-        peaks_ix, _ = find_peaks(psd, distance=200, height=height)
+        self.psd_max_limit = np.max(psd) * 0.3
+        peaks_ix, _ = find_peaks(psd, distance=100, height=self.psd_max_limit)
 
         # Sort peaks
         p_sort = np.argsort(psd[peaks_ix])
@@ -254,11 +251,17 @@ class SignalAnalysis:
 
         ax1.plot(t, v, color="C0", lw=0.7)
 
+        # window = hamming(len(v))
+        # ax1.plot(t, v*window, color="C3", lw=0.7)
+
         ax1.set_xlabel("Time [s]")
         ax1.set_ylabel("Velocity [mm/s]")
 
         ax2.plot(freq, psd, color="C0", lw=0.7)
         ax2.scatter(freq[peaks_ix], psd[peaks_ix], marker="o", color="r")
+        ax2.axhline(self.psd_max_limit, color="C3", ls="--", lw=0.5)
+        ax2.annotate("detect threshold", xy=(freq[-1], self.psd_max_limit), color="C3",
+                     fontsize=6, ha="right", va="bottom")
 
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
@@ -386,8 +389,7 @@ def main():
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
-    vib_data, time_ = vib_analysis.wait_and_record(duration=REC_TIME, total_recording=20,
-                                                   thress=THRESSHOLD)
+    vib_analysis.wait_and_record(duration=REC_TIME, total_recording=20, thress=THRESSHOLD)
 
     vib_analysis.compute_frequencies()
 

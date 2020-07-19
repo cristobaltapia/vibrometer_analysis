@@ -579,20 +579,21 @@ class SignalTimePlot(MplCanvas):
         TODO
 
         """
+        self.compute_initial_figure()
         show_time = self.preview_time
         length = int(show_time * rate / (downsample))
+
         self.live_data = np.zeros((length, 1))
         self.time = np.arange(start=0, step=float(downsample) / float(rate), stop=show_time)
 
         ax = self.axes
-        ax.cla()
         self.draw()
         self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
         ax.set_xlim(left=0, right=show_time)
         ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
         ax.grid(True)
 
-        self.ani = FuncAnimation(self.figure, self.update_live_preview, interval=50,
+        self.ani = FuncAnimation(self.figure, self.update_live_preview, interval=interval,
                                  blit=True, repeat=False)
 
         self.mic.start_stream()
