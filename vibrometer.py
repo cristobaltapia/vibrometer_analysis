@@ -188,7 +188,7 @@ class SignalAnalysis:
         peaks_ix, _ = find_peaks(psd, distance=100, height=self.psd_max_limit)
 
         # Sort peaks
-        p_sort = np.argsort(psd[peaks_ix])
+        p_sort = np.argsort(psd[peaks_ix])[::-1]
         peaks_ix_sort = peaks_ix[p_sort]
 
         print("Frequencies detected:")
