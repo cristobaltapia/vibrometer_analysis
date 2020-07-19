@@ -11,11 +11,10 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
-                             QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
-                             QLabel, QLineEdit, QMainWindow, QProgressBar,
-                             QPushButton, QSizePolicy, QSlider, QTableView,
-                             QTableWidget, QTableWidgetItem, QVBoxLayout,
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
+                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                             QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
+                             QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
                              QWidget)
 
 from vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
@@ -238,18 +237,18 @@ class Window(QMainWindow):
 
         #############################################################
         # Matplotlib
-        self.canvas = MplCanvas(self.main_widget, width=5, height=2, dpi=100)
-        self.canvas_f = MplCanvas(self.main_widget, width=5, height=2, dpi=100)
 
-        self.init_canvas()
+        self.canvas = SignalTimePlot(self.main_widget, width=5, height=2, dpi=100,
+                                     prev_time=self.preview_time)
+        self.canvas_f = FrequencyPlot(self.main_widget, width=5, height=2, dpi=100)
+
+        self.init_stream()
 
         main_layout.addWidget(self.canvas)
         main_layout.addWidget(self.canvas_f)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
-
-        self.init_stream()
 
         # Signal handling
         self.sig_stream_restart.connect(self.init_stream)
@@ -271,11 +270,13 @@ class Window(QMainWindow):
         ix_sel = self.devs.index(dev_sel)
         dev_num = self.devs_ix[ix_sel]
         dev_rate = int(self.devs_rate[ix_sel])
+        self.dev_rate = dev_rate
         fs = int(dev_rate)
         dev_velo = self.dev_velo
 
         self.mic = VibrometerCapture(dev_num, rate=fs, velo=dev_velo,
                                      downsample=self.downsample)
+        self.canvas.set_mic(self.mic)
 
     def reload_device(self):
         self.mic.close_stream()
@@ -322,6 +323,7 @@ class Window(QMainWindow):
         """Update the x-axis of the matplotlib canvas."""
         if not self.freq_min_slide.isSliderDown():
             slider = self.min_freq.value()
+            self.canvas_f.min_f = slider
             self.canvas_f.axes.set_xlim(left=slider)
             self.canvas_f.draw()
 
@@ -329,6 +331,7 @@ class Window(QMainWindow):
         """Update the x-axis of the matplotlib canvas."""
         if not self.freq_max_slide.isSliderDown():
             slider = self.max_freq.value()
+            self.canvas_f.max_f = slider
             self.canvas_f.axes.set_xlim(right=slider)
             self.canvas_f.draw()
 
@@ -378,11 +381,14 @@ class Window(QMainWindow):
         self.results.setModel(self.data_results)
 
         vib_analysis.make_plot_gui(self.canvas.axes, self.canvas_f.axes)
-        self.statusBar().showMessage('Ready')
-        self.preview.setEnabled(True)
-        self.sig_unlock.emit("Unlock")
+
+        # Send signals
         self.sig_stream_restart.emit("Restart")
+        self.sig_unlock.emit("Unlock")
+        self.preview.setEnabled(True)
         self.start.setEnabled(True)
+
+        self.statusBar().showMessage('Ready')
 
     def start_live_preview(self):
         """Start live plotting of signal."""
@@ -393,34 +399,14 @@ class Window(QMainWindow):
         self.preview_stop.setEnabled(True)
         self.statusBar().showMessage('Preview...')
 
-        # Get selected device
-        dev_sel = self.cbox_dev.currentText()
-        # Get index of the device
-        ix_sel = self.devs.index(dev_sel)
-        dev_rate = int(self.devs_rate[ix_sel])
+        rate = int(self.dev_rate)
 
-        rate = int(dev_rate)
-        rec_time = self.preview_time
-
-        # Plot
-        self.init_canvas()
-        length = int(rec_time * rate / (self.downsample))
-        self.live_data = np.zeros((length, 1))
-        self.time = np.arange(start=0, step=float(self.downsample) / float(rate),
-                              stop=rec_time)
-        ax = self.canvas.axes
-        self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
-        ax.set_xlim(left=0, right=self.preview_time)
-        ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
-        ax.grid(True)
-
-        self.ani = FuncAnimation(self.canvas.figure, self.update_live_preview, interval=50, blit=True)
-
-        self.mic.start_stream()
+        self.canvas_f.compute_initial_figure()
+        self.canvas.live_preview(rate, downsample=self.downsample, interval=50)
 
     def stop_live_preview(self):
-        self.ani.event_source.stop()
-        self.init_canvas()
+        self.canvas.stop_live_preview()
+        # self.init_canvas()
         self.mic.stop_stream()
         self.mic.close_stream()
         # Change status of buttons
@@ -431,23 +417,6 @@ class Window(QMainWindow):
         self.cbox_vel.setEnabled(True)
         self.statusBar().showMessage('Ready...')
         self.sig_stream_restart.emit("Restart")
-
-    def update_live_preview(self, frame):
-        while True:
-            try:
-                data = self.mic.q.get_nowait()
-            except queue.Empty:
-                break
-
-            shift = len(data)
-            self.live_data = np.roll(self.live_data, -shift, axis=0)
-            self.live_data[-shift:, :] = data
-
-        for column, line in enumerate(self.lines):
-            line.set_ydata(self.live_data[:, column])
-
-        return self.lines
-        # self.canvas.draw()
 
     def lock_input(self):
         """Lock all the input fields."""
@@ -478,33 +447,6 @@ class Window(QMainWindow):
             field.setReadOnly(False)
 
         self.cbox_dev.setEnabled(True)
-
-    def init_canvas(self):
-        """
-        Initialize plots.
-        """
-        ax1 = self.canvas.axes
-        ax2 = self.canvas_f.axes
-
-        ax1.cla()
-        ax2.cla()
-
-        ax1.set_xlabel("Time [s]")
-        ax1.set_ylabel("Velocity [mm/s]")
-
-        ax1.set_xlim(left=0, right=self.preview_time)
-        ax1.grid(True)
-
-        ax2.set_xlabel("Frequency [Hz]")
-        ax2.set_ylabel("PSD")
-
-        ax2.set_xlim(left=self.min_freq.value(), right=self.max_freq.value())
-
-        self.canvas.figure.tight_layout()
-        self.canvas_f.figure.tight_layout()
-
-        self.canvas.draw()
-        self.canvas_f.draw()
 
     def audio_callback(self, indata, frames, time, status):
         """This is called (from a separate thread) for each audio block."""
@@ -579,17 +521,138 @@ class MplCanvas(FigureCanvas, FuncAnimation):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
-        self.compute_initial_figure()
-
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding,
                                    QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        self.compute_initial_figure()
 
     def compute_initial_figure(self):
         pass
+
+
+class SignalTimePlot(MplCanvas):
+    """Canvas used to plot the signal in the time domain.
+
+    Parameters
+    ----------
+    parent : TODO
+    width : TODO
+    height : TODO
+    dpi : TODO
+
+    """
+    def __init__(self, parent=None, width=5, height=4, dpi=100, prev_time=5):
+        self.mic = None
+        self.preview_time = prev_time
+        super(SignalTimePlot, self).__init__(parent, width, height, dpi)
+
+    def set_mic(self, mic):
+        self.mic = mic
+
+    def compute_initial_figure(self):
+        ax1 = self.axes
+        ax1.clear()
+
+        ax1.set_xlabel("Time [s]")
+        ax1.set_ylabel("Velocity [mm/s]")
+
+        ax1.set_xlim(left=0, right=self.preview_time)
+        ax1.grid(True)
+
+        self.figure.tight_layout()
+        self.draw()
+
+    def live_preview(self, rate, downsample, interval):
+        """TODO: Docstring for live_preview.
+
+        Parameters
+        ----------
+        time : TODO
+        rate : TODO
+        interval : TODO
+
+        Returns
+        -------
+        TODO
+
+        """
+        show_time = self.preview_time
+        length = int(show_time * rate / (downsample))
+        self.live_data = np.zeros((length, 1))
+        self.time = np.arange(start=0, step=float(downsample) / float(rate), stop=show_time)
+
+        ax = self.axes
+        ax.cla()
+        self.draw()
+        self.lines = ax.plot(self.time, self.live_data, color="C0", lw=0.7)
+        ax.set_xlim(left=0, right=show_time)
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
+        ax.grid(True)
+
+        self.ani = FuncAnimation(self.figure, self.update_live_preview, interval=50,
+                                 blit=True, repeat=False)
+
+        self.mic.start_stream()
+
+    def update_live_preview(self, frame):
+        while True:
+            try:
+                data = self.mic.q.get_nowait()
+            except queue.Empty:
+                break
+
+            shift = len(data)
+            self.live_data = np.roll(self.live_data, -shift, axis=0)
+            self.live_data[-shift:, :] = data
+
+        for column, line in enumerate(self.lines):
+            line.set_ydata(self.live_data[:, column])
+
+        return self.lines
+
+    def stop_live_preview(self):
+        self.ani.event_source.stop()
+        self.compute_initial_figure()
+
+
+class FrequencyPlot(MplCanvas):
+    """Canvas for the frequency domain of the signal.
+
+    Parameters
+    ----------
+    parent : TODO
+    width : TODO
+    height : TODO
+    dpi : TODO
+
+    """
+    def __init__(self, parent, width, height, dpi, min_f=0, max_f=20000):
+        """TODO: to be defined.
+
+
+        """
+        self.min_f = min_f
+        self.max_f = max_f
+
+        super(FrequencyPlot, self).__init__(parent, width, height, dpi)
+
+    def compute_initial_figure(self):
+        """
+        Initialize plots.
+        """
+        ax = self.axes
+        ax.cla()
+
+        ax.set_xlabel("Frequency [Hz]")
+        ax.set_ylabel("PSD")
+
+        ax.set_xlim(left=self.min_f, right=self.max_f)
+
+        self.figure.tight_layout()
+        self.draw()
 
 
 if __name__ == "__main__":
