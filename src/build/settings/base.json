@@ -1,0 +1,6 @@
+{
+    "app_name": "vibrometer_analysis",
+    "author": "Cristoóbal Tapia Camú",
+    "main_module": "src/main/python/main.py",
+    "version": "0.0.0"
+}
