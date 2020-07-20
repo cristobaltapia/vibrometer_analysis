@@ -5,6 +5,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 import sounddevice as sd
+from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
@@ -657,6 +658,7 @@ class FrequencyPlot(MplCanvas):
 
 
 if __name__ == "__main__":
-    app = QApplication([])
+    appctxt = ApplicationContext()       # 1. Instantiate ApplicationContext
     window = Window()
-    app.exec_()
+    exit_code = appctxt.app.exec_()      # 2. Invoke appctxt.app.exec_()
+    sys.exit(exit_code)
