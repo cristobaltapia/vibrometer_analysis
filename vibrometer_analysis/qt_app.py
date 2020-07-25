@@ -5,7 +5,6 @@ import matplotlib
 import numpy as np
 import pandas as pd
 import sounddevice as sd
-from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
@@ -18,7 +17,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayou
                              QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
                              QWidget)
 
-from vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
+from .vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
 
 matplotlib.use('Qt5Agg')
 
@@ -656,9 +655,10 @@ class FrequencyPlot(MplCanvas):
         self.figure.tight_layout()
         self.draw()
 
+def main():
+    app = QApplication([])
+    window = Window()
+    app.exec_()
 
 if __name__ == "__main__":
-    appctxt = ApplicationContext()       # 1. Instantiate ApplicationContext
-    window = Window()
-    exit_code = appctxt.app.exec_()      # 2. Invoke appctxt.app.exec_()
-    sys.exit(exit_code)
+    main()
