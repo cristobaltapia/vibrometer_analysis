@@ -1,4 +1,4 @@
-# ![icon](images/64.png) Vibrometer analysis 
+# ![icon](resources/icons/64.png) Vibrometer analysis 
 
 A program to analyze the signal comming from a laser vibrometer and obtain the eigenfrequencies.
 However, it is very general and can be used with other signal sources (any microphone basically).
