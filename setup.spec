@@ -3,8 +3,8 @@
 block_cipher = None
 
 
-a = Analysis(['vibrometer_analysis/qt_app.py', 'vibrometer_analysis/vibrometer.py'],
-             pathex=['/home/tapia/git_repos/Meine/vibrometer_analysis'],
+a = Analysis(['app.py'],
+             pathex=['.'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -34,4 +34,4 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='qt_app')
+               name='app')
