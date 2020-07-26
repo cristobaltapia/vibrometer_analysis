@@ -3,7 +3,7 @@
 A program to analyze the signal comming from a laser vibrometer and obtain the eigenfrequencies.
 However, it is very general and can be used with other signal sources (any microphone basically).
 
-![screenshot](images/screenshot.png)
+![screenshot](resources/screenshot.png)
 
 ## Highlights
 
