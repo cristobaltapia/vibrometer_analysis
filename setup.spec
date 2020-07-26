@@ -44,3 +44,5 @@ coll = COLLECT(
     upx_exclude=[],
     name='app',
 )
+
+# vim: set ft=python:
