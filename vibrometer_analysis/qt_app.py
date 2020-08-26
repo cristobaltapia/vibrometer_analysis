@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayou
                              QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
                              QWidget)
 
-from .vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
+from vibrometer_analysis.vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
 
 matplotlib.use('Qt5Agg')
 
@@ -300,7 +300,7 @@ class Window(QMainWindow):
         self.max_freq.setValue(freq)
 
     def update_min_freq_slider(self, val):
-        slider = val * 99.0 / 20000.0
+        slider = int(val * 99.0 / 20000.0)
         max_slider = 99.0 - self.freq_max_slide.value()
         if slider >= max_slider:
             self.freq_min_slide.setValue(max_slider)
@@ -310,7 +310,7 @@ class Window(QMainWindow):
             self.min_freq.valueChanged.connect(self.update_min_freq_slider)
 
     def update_max_freq_slider(self, val):
-        slider = (20000 - float(val)) * (99.0) / 20000.0
+        slider = int((20000 - float(val)) * (99.0) / 20000.0)
         min_slider = 99.0 - self.freq_min_slide.value()
         if slider >= min_slider:
             self.freq_max_slide.setValue(min_slider)
@@ -467,8 +467,8 @@ class TableResults(QTableView):
 
     def resizeEvent(self, event):
         width = event.size().width()
-        self.setColumnWidth(1, width * 0.5)
-        self.setColumnWidth(2, width * 0.5)
+        self.setColumnWidth(1, int(width * 0.5))
+        self.setColumnWidth(2, int(width * 0.5))
 
 
 class TableModel(QtCore.QAbstractTableModel):

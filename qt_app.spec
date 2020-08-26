@@ -1,13 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+
+spec_root = os.path.abspath(SPECPATH)
 
 block_cipher = None
 
 a = Analysis(
-    ['app.py'],
-    pathex=['.'],
+    ['vibrometer_analysis/qt_app.py'],
+    pathex=[spec_root],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        'pkg_resources.py2_warn',
+        'scipy.special.cython_special',
+    ],
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
@@ -16,17 +22,13 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
-pyz = PYZ(
-    a.pure,
-    a.zipped_data,
-    cipher=block_cipher,
-)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name='Vibrometer Analysis',
+    name='vibrometer_analysis',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -42,7 +44,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='app',
+    name='vibrometer_analysis',
 )
-
-# vim: set ft=python:
