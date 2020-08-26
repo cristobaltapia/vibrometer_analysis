@@ -3,18 +3,12 @@ import os
 
 spec_root = os.path.abspath(SPECPATH)
 
-if os.name == 'nt':
-    binaries = []
-else:
-    binaries = [("resources/portaudio/libportaudio64bit.dll",
-                 "_sounddevice_data/portaudio-binaries")]
-
 block_cipher = None
 
 a = Analysis(
     ['vibrometer_analysis/qt_app.py'],
     pathex=[spec_root],
-    binaries=binaries,
+    binaries=[],
     datas=[],
     hiddenimports=[
         'pkg_resources.py2_warn',
