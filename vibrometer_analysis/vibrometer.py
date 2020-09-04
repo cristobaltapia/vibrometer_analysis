@@ -97,9 +97,6 @@ class SignalAnalysis:
                                        downsample=1)
         self.vibro.start_stream()
 
-        timer_capture = Timer(interval=1, function=self.update_signal)
-        timer_capture.start()
-
         print("------------------")
         print("Recording...")
         print("Waiting for impulse...")
@@ -113,6 +110,7 @@ class SignalAnalysis:
         impact_detected = False
 
         while True:
+            self.update_signal()
             if progress:
                 progress.setValue(time() - t_init)
 
@@ -133,7 +131,6 @@ class SignalAnalysis:
 
         self.vibro.stop_stream()
         self.vibro.close_stream()
-        timer_capture.cancel()
         # One last call to update the signal results
         self.update_signal()
 
@@ -436,4 +433,5 @@ def play_detected():
 
 if __name__ == "__main__":
     main()
+    # play_detected()
 

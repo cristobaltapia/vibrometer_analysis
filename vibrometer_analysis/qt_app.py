@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
+from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot, QTimer
 from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
                              QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
@@ -118,7 +118,7 @@ class Window(QMainWindow):
         self.rec_time.setFixedWidth(80)
         self.trigger = QDoubleSpinBox()
         self.trigger.setMinimum(1e-8)
-        self.trigger.setValue(0.02)
+        self.trigger.setValue(0.10)
         self.trigger.setDecimals(5)
         self.trigger.setSingleStep(0.01)
         self.trigger.setFixedWidth(80)
