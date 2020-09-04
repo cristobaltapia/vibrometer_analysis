@@ -422,9 +422,9 @@ def play_detected():
     freq_2 = 600
     freq_3 = 900
     t = np.linspace(0, total_t, int(fs * total_t))
-    audio_1 = 10 * np.sin(t * 2.0 * np.pi * freq_1)
-    audio_2 = 10 * np.sin(t * 2.0 * np.pi * freq_2)
-    audio_3 = 10 * np.sin(t * 2.0 * np.pi * freq_3)
+    audio_1 = 3 * np.sin(t * 2.0 * np.pi * freq_1)
+    audio_2 = 3 * np.sin(t * 2.0 * np.pi * freq_2)
+    audio_3 = 3 * np.sin(t * 2.0 * np.pi * freq_3)
 
     audio = np.concatenate((audio_1, audio_2, audio_3))
 
