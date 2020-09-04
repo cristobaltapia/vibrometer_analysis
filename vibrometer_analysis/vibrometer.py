@@ -122,6 +122,7 @@ class SignalAnalysis:
             if val > thress:
                 print("Impulse detected!...")
                 impact_detected = True
+                play_detected()
                 break
             if time() - t_init > total_recording:
                 break
@@ -410,6 +411,28 @@ def compute_moe(freq):
     """
     return 4 * L**2 * freq**2 * RHO
 
+
+def play_detected():
+    """Play a sound when impulse is detected
+    Returns
+    -------
+    TODO
+
+    """
+    fs = 44100
+    total_t = 0.1
+    freq_1 = 400
+    freq_2 = 600
+    freq_3 = 900
+    t = np.linspace(0, total_t, int(fs * total_t))
+    audio_1 = 10 * np.sin(t * 2.0 * np.pi * freq_1)
+    audio_2 = 10 * np.sin(t * 2.0 * np.pi * freq_2)
+    audio_3 = 10 * np.sin(t * 2.0 * np.pi * freq_3)
+
+    audio = np.concatenate((audio_1, audio_2, audio_3))
+
+    sd.play(audio, fs)
+    sd.wait()
 
 if __name__ == "__main__":
     main()
