@@ -97,9 +97,6 @@ class SignalAnalysis:
                                        downsample=1)
         self.vibro.start_stream()
 
-        timer_capture = Timer(interval=1, function=self.update_signal)
-        timer_capture.start()
-
         print("------------------")
         print("Recording...")
         print("Waiting for impulse...")
@@ -113,6 +110,7 @@ class SignalAnalysis:
         impact_detected = False
 
         while True:
+            self.update_signal()
             if progress:
                 progress.setValue(time() - t_init)
 
@@ -122,6 +120,7 @@ class SignalAnalysis:
             if val > thress:
                 print("Impulse detected!...")
                 impact_detected = True
+                play_detected()
                 break
             if time() - t_init > total_recording:
                 break
@@ -132,7 +131,6 @@ class SignalAnalysis:
 
         self.vibro.stop_stream()
         self.vibro.close_stream()
-        timer_capture.cancel()
         # One last call to update the signal results
         self.update_signal()
 
@@ -411,6 +409,29 @@ def compute_moe(freq):
     return 4 * L**2 * freq**2 * RHO
 
 
+def play_detected():
+    """Play a sound when impulse is detected
+    Returns
+    -------
+    TODO
+
+    """
+    fs = 44100
+    total_t = 0.1
+    freq_1 = 400
+    freq_2 = 600
+    freq_3 = 900
+    t = np.linspace(0, total_t, int(fs * total_t))
+    audio_1 = 10 * np.sin(t * 2.0 * np.pi * freq_1)
+    audio_2 = 10 * np.sin(t * 2.0 * np.pi * freq_2)
+    audio_3 = 10 * np.sin(t * 2.0 * np.pi * freq_3)
+
+    audio = np.concatenate((audio_1, audio_2, audio_3))
+
+    sd.play(audio, fs)
+    sd.wait()
+
 if __name__ == "__main__":
     main()
+    # play_detected()
 
