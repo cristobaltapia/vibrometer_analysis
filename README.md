@@ -1,6 +1,6 @@
 # ![icon](resources/icons/64.png) Vibrometer analysis 
 
-A Qt-program to compute dynamic modulus of elasticity of boards, by analyzing an input signal and computing the corresponding eigenfrequencies.
+A Qt-program to compute dynamic moduli of elasticity of timber boards, by analyzing an input signal and computing the corresponding eigenfrequencies.
 It was developed specifically to work with the VIB-E-220 data acquisition device (Polytec) together with a laser vibrometer, however, it is very general and can be used with other signal sources (any microphone basically).
 
 ![screenshot](resources/screenshot.png)
