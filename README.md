@@ -1,7 +1,7 @@
 # ![icon](resources/icons/64.png) Vibrometer analysis 
 
-A program to analyze the signal comming from a laser vibrometer and obtain the eigenfrequencies.
-However, it is very general and can be used with other signal sources (any microphone basically).
+A Qt-program to analyze an input signal obtain the corresponding eigenfrequencies.
+It was developed specifically to work with the VIB-E-220 data acquisition device (Polytec) together with a laser vibrometer, however, it is very general and can be used with other signal sources (any microphone basically).
 
 ![screenshot](resources/screenshot.png)
 
@@ -11,6 +11,16 @@ However, it is very general and can be used with other signal sources (any micro
 * Autotrigger FFT when an impulse is detected
 * Chose from different input sources (microphones)
 * Compute dynamic modulus of elasticity based on the obtained frequency, given the dimensions of the board and weight
-* Works on Linux and Windows (and probably MaxOS, but I havn't tested that)
+* Works on Linux and Windows (and probably MaxOS, but I haven't tested that)
 
 That's it! Pretty cool, right?
+
+## Installation
+
+Use poetry:
+
+```
+git clone https://github.tik.uni-stuttgart.de/MPA-Holzkonstruktionen/vibrometer_analysis.git
+cd vibrometer_analysis
+poetry install
+```
