@@ -2,14 +2,14 @@ import queue
 import re
 import sys
 from time import sleep, time
-from threading import Timer
 
-import matplotlib as mpl  # isort: skip
 import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 from numpy.fft import fft, fftfreq
-from scipy.signal import blackman, find_peaks, hamming, hanning
+from scipy.signal import find_peaks, hanning
+
+import matplotlib as mpl  # isort: skip
 
 # Add the following befor importing pyplot:
 rc_params_gruyter = {

@@ -1,6 +1,7 @@
 import queue
 import sys
 
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import sounddevice as sd
@@ -20,7 +21,6 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
 from vibrometer_analysis.vibrometer import (DEV_NAME, SignalAnalysis,
                                             VibrometerCapture)
 
-import matplotlib as mpl
 mpl.use('Qt5Agg')
 
 
