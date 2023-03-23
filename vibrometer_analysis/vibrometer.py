@@ -77,12 +77,12 @@ class SignalAnalysis:
 
         Parameters
         ----------
-        duration : TODO
+        duration : float
         total_recording : TODO
 
         Returns
         -------
-        TODO
+        impact_detected
 
         """
         total_recording = int(total_recording)
