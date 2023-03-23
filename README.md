@@ -1,4 +1,4 @@
-# ![icon](resources/icons/64.png) Vibrometer analysis 
+# ![icon](resources/icons/64.png) Vibrometer analysis
 
 A Qt-program to compute dynamic moduli of elasticity of timber boards, by analyzing an input signal and computing the corresponding eigenfrequencies.
 It was developed specifically to work with the VIB-E-220 data acquisition device (Polytec) together with a laser vibrometer, however, it is very general and can be used with other signal sources (any microphone basically).
@@ -20,7 +20,8 @@ That's it! Pretty cool, right?
 Use poetry:
 
 ```
-git clone https://github.tik.uni-stuttgart.de/MPA-Holzkonstruktionen/vibrometer_analysis.git
+git clone https://github.com/cristobaltapia/vibrometer_analysis.git
 cd vibrometer_analysis
 poetry install
+poetry run app
 ```
