@@ -11,15 +11,13 @@ from matplotlib.backends.backend_qt5agg import \
 from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QRunnable, Qt, QThreadPool, QTimer, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
-                             QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
-                             QLabel, QLineEdit, QMainWindow, QProgressBar,
-                             QPushButton, QSizePolicy, QSlider, QTableView,
-                             QTableWidget, QTableWidgetItem, QVBoxLayout,
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
+                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                             QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
+                             QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
                              QWidget)
 
-from vibrometer_analysis.vibrometer import (DEV_NAME, SignalAnalysis,
-                                            VibrometerCapture)
+from vibrometer_analysis.vibrometer import (DEV_NAME, SignalAnalysis, VibrometerCapture)
 
 mpl.use('Qt5Agg')
 
@@ -378,7 +376,7 @@ class Window(QMainWindow):
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
 
-        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=np.int)
+        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=int)
         self.data_results = TableModel(data_results)
         self.results.setModel(self.data_results)
 
@@ -460,6 +458,7 @@ class Window(QMainWindow):
 
 
 class TableResults(QTableView):
+
     def __init__(self, model, parent=None):
         super(TableResults, self).__init__(parent)
 
@@ -474,6 +473,7 @@ class TableResults(QTableView):
 
 
 class TableModel(QtCore.QAbstractTableModel):
+
     def __init__(self, data):
         super(TableModel, self).__init__()
         self._data = data
@@ -506,6 +506,7 @@ class Worker(QRunnable):
     Used to not block the GUI while aquiring data.
 
     """
+
     def __init__(self, fn, *args, **kwargs):
         super(Worker, self).__init__()
         self.fn = fn
@@ -519,6 +520,7 @@ class Worker(QRunnable):
 
 class MplCanvas(FigureCanvas, FuncAnimation):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
@@ -546,6 +548,7 @@ class SignalTimePlot(MplCanvas):
     dpi : TODO
 
     """
+
     def __init__(self, parent=None, width=5, height=4, dpi=100, prev_time=5):
         self.mic = None
         self.preview_time = prev_time
@@ -632,6 +635,7 @@ class FrequencyPlot(MplCanvas):
     dpi : TODO
 
     """
+
     def __init__(self, parent, width, height, dpi, min_f=0, max_f=20000):
         """TODO: to be defined.
 
@@ -657,10 +661,12 @@ class FrequencyPlot(MplCanvas):
         self.figure.tight_layout()
         self.draw()
 
+
 def main():
     app = QApplication([])
     window = Window()
     app.exec_()
+
 
 if __name__ == "__main__":
     main()
