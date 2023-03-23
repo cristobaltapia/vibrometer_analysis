@@ -165,7 +165,7 @@ class SignalAnalysis:
         spacing = self._spacing
 
         # Apply window to reduce noise
-        window = hamming(n_points)
+        window = hanning(n_points)
 
         # Apply FFT
         psd_ = fft(data * window)[0:n_points // 2]
