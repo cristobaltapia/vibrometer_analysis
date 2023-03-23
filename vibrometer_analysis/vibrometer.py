@@ -337,16 +337,17 @@ class VibrometerCapture:
 
     Parameters
     ----------
-    device : TODO
-    rate : TODO
+    device : int
+        Index of the audio device.
+    rate : int
+        Sampling rate
+    velo : int
+        Velocity set-up in the measuring device.
+    downsample : int
+        Downsample the signal by this factor.
 
     """
     def __init__(self, device, rate, velo, downsample):
-        """TODO: to be defined.
-
-
-
-        """
         self.device = device
         self.rate = rate
         self.velo = velo
