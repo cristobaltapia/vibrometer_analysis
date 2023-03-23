@@ -354,7 +354,7 @@ class VibrometerCapture:
         self.q = queue.Queue()
         self.downsample = downsample
 
-        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=self.rate,
+        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=rate,
                                      callback=self.audio_callback)
 
     def start_stream(self):
@@ -367,7 +367,7 @@ class VibrometerCapture:
         self.stream.close()
 
     def audio_callback(self, indata, frames, time, status):
-        """This is called (from a separate thread) for each audio block."""
+        """Call from a separate thread for each audio block."""
         if status:
             print(status, file=sys.stderr)
         # Fancy indexing with mapping creates a (necessary!) copy:
