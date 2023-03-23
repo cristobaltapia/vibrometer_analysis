@@ -20,7 +20,8 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox,
 from vibrometer_analysis.vibrometer import (DEV_NAME, SignalAnalysis,
                                             VibrometerCapture)
 
-matplotlib.use('Qt5Agg')
+import matplotlib as mpl
+mpl.use('Qt5Agg')
 
 
 class Window(QMainWindow):
