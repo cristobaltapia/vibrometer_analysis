@@ -411,12 +411,7 @@ def compute_moe(freq):
 
 
 def play_detected():
-    """Play a sound when impulse is detected
-    Returns
-    -------
-    TODO
-
-    """
+    """Define a sound to play when impulse is detected."""
     fs = 44100
     total_t = 0.1
     freq_1 = 400
