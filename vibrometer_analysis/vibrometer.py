@@ -3,13 +3,16 @@ import re
 import sys
 from time import sleep, time
 
+from matplotlib.axes import Axes
+from numpy.typing import ArrayLike, NDArray
+from PyQt6.QtWidgets import QProgressBar
+
 import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 from numpy.fft import fft, fftfreq
-from scipy.signal import find_peaks, hanning
-
-import matplotlib as mpl  # isort: skip
+from scipy.signal import find_peaks
+from scipy.signal.windows import hamming
 
 # Add the following befor importing pyplot:
 rc_params_gruyter = {
@@ -45,44 +48,61 @@ DEV_NAME = "default"
 
 
 def next_power_of_2(x):
-    return 1 if x == 0 else 2**(x - 1).bit_length()
+    return 1 if x == 0 else 2 ** (x - 1).bit_length()
 
 
 class SignalAnalysis:
-    """Docstring for SignalAnalysis.
+    """A class used to analyse the data from the vibrometer.
 
     Parameters
     ----------
-    device : TODO
-    sample_rate : TODO
-    duration : TODO
-    total_recording : TODO
+    device : int
+        Sound device used to listen for the signal.
+    sample_rate : int
+        Sample rate used capture the signal.
+    velo : float
+        Maximum velocity captured by the device.
 
     """
-    def __init__(self, device, sample_rate, velo):
+
+    _data: ArrayLike
+    _time: ArrayLike
+    _freq: NDArray[np.int64]
+    _n_points: int
+    _psd: NDArray[np.float64]
+    _peaks_ix: NDArray[np.int64]
+
+    def __init__(self, device: int, sample_rate: float, velo: float):
         self._device = device
         self._sample_rate = int(sample_rate)
         self._velo = velo
         self._spacing = 1.0 / sample_rate
-        self._n_points = None
-        self._data = None
-        self._time = None
-        self._freq = None
-        self._psd = None
-        self._peaks_ix = None
         self.prev_sig_ix = 0
 
-    def wait_and_record(self, duration, total_recording, thress, progress=None):
-        """Start recording and return the signal after an impulse is given.
+    def wait_and_record(
+        self,
+        duration: float,
+        total_recording: int,
+        thress: float,
+        progress: QProgressBar | None = None,
+    ):
+        """Start recording and return the signal after an impulse is detected.
 
         Parameters
         ----------
         duration : float
-        total_recording : TODO
+            Recording time (used for the analysis)
+        total_recording : float
+            Total recording time
+        thress : float
+            Thresshold of the signal to be used to mark as the start of the measurement
+        progress : bool
+            Whether progress information should be displayed in the terminal
 
         Returns
         -------
-        impact_detected
+        impact_detected : bool
+            Whether an impact was detacted
 
         """
         total_recording = int(total_recording)
@@ -93,15 +113,16 @@ class SignalAnalysis:
         self.live_data = np.zeros((length, 1))
 
         # Initialize a Vibrometer Capture object
-        self.vibro = VibrometerCapture(device=self._device, rate=rate, velo=self._velo,
-                                       downsample=1)
+        self.vibro = VibrometerCapture(
+            device=self._device, rate=rate, velo=self._velo, downsample=1
+        )
         self.vibro.start_stream()
 
-        print("------------------")
-        print("Recording...")
-        print("Waiting for impulse...")
+        # Show the progress bar if we are running the QT app
         if progress:
-            # Reset progress bar
+            print("------------------")
+            print("Recording...")
+            print("Waiting for impulse...")
             progress.setVisible(True)
 
         extra_time = 0.005
@@ -109,6 +130,7 @@ class SignalAnalysis:
         t_init = time()
         impact_detected = False
 
+        # Wait until an impulse is detected
         while True:
             self.update_signal()
             if progress:
@@ -136,8 +158,8 @@ class SignalAnalysis:
 
         print("Stop recording...")
 
-        data = self.live_data[ix:ix + int(rate * duration):, 0]
-        data = data.reshape((-1, ))
+        data = self.live_data[ix : ix + int(rate * duration) :, 0]
+        data = data.reshape((-1,))
         # Remove mean
         data = data - np.mean(data)
         time_ = np.arange(start=0, step=1.0 / rate, stop=len(data) / rate)
@@ -153,11 +175,22 @@ class SignalAnalysis:
 
         return impact_detected
 
-    def compute_frequencies(self, min_freq=0, max_freq=20000):
-        """TODO: Docstring for compute_frequencies.
+    def compute_frequencies(self, min_freq: int = 0, max_freq: int = 20000):
+        """Compute eigen frequencies from the signal.
+
+        Parameters
+        ----------
+        min_freq : int
+            Minimum frequency to consider for the analysis.
+        max_freq : int
+            Maximum frequency to consider for the analysis.
+
         Returns
         -------
-        TODO
+
+        freq : ArrayLike
+            Frequencies detected. These consider the frequencies with a PSD larger
+            than 10% of the maximum detected PSD.
 
         """
         n_points = self._n_points
@@ -165,11 +198,11 @@ class SignalAnalysis:
         spacing = self._spacing
 
         # Apply window to reduce noise
-        window = hanning(n_points)
+        window: ArrayLike = hamming(n_points)
 
         # Apply FFT
-        psd_ = fft(data * window)[0:n_points // 2]
-        freq = fftfreq(n_points, d=spacing)[0:n_points // 2]
+        psd_ = fft(data * window)[0 : n_points // 2]
+        freq = fftfreq(n_points, d=spacing)[0 : n_points // 2]
 
         psd_ = np.real(psd_)
         psd = 1.0 / n_points * np.abs(psd_)
@@ -178,11 +211,11 @@ class SignalAnalysis:
         ix_min = np.argmin(np.abs(freq - min_freq))
         ix_max = np.argmin(np.abs(freq - max_freq))
 
-        psd = psd[ix_min:ix_max + 1]
-        freq = freq[ix_min:ix_max + 1]
+        psd = psd[ix_min : ix_max + 1]
+        freq = freq[ix_min : ix_max + 1]
 
         # Obtain the three most relevant frequencies
-        self.psd_max_limit = np.max(psd) * 0.3
+        self.psd_max_limit: float = float(np.max(psd)) * 0.3
         peaks_ix, _ = find_peaks(psd, distance=100, height=self.psd_max_limit)
 
         # Sort peaks
@@ -190,11 +223,6 @@ class SignalAnalysis:
         peaks_ix_sort = peaks_ix[p_sort]
 
         print("Frequencies detected:")
-        for kx, pi in enumerate(peaks_ix_sort):
-            moe_i = compute_moe(freq[pi])
-            print(f"\tf = {freq[pi]} Hz; \t E = {moe_i:1.2f} [MPa]")
-            if kx >= 2:
-                break
 
         self._psd = psd
         self._freq = freq
@@ -228,16 +256,28 @@ class SignalAnalysis:
         for pi in peaks_ix:
             x_i = freq[pi]
             y_i = psd[pi]
-            ax2.annotate(f"{x_i} Hz", xy=(x_i, y_i), xytext=(20, -10),
-                         textcoords="offset points", arrowprops={
-                             "arrowstyle": "->",
-                             "connectionstyle": "arc"
-                         })
+            ax2.annotate(
+                f"{x_i} Hz",
+                xy=(x_i, y_i),
+                xytext=(20, -10),
+                textcoords="offset points",
+                arrowprops={"arrowstyle": "->", "connectionstyle": "arc"},
+            )
 
         fig.tight_layout()
         plt.show()
 
-    def make_plot_gui(self, ax1, ax2):
+    def make_plot_gui(self, ax1: Axes, ax2: Axes):
+        """Generate the plot for the signal and frequency space.
+
+        Parameters
+        ----------
+        ax1 : Axes
+            Axes object for the signal data.
+        ax2 : Axes
+            Axes object for the frequency domain.
+
+        """
         v = self._data
         t = self._time
         freq = self._freq
@@ -258,8 +298,14 @@ class SignalAnalysis:
         ax2.plot(freq, psd, color="C0", lw=0.7)
         ax2.scatter(freq[peaks_ix], psd[peaks_ix], marker="o", color="r")
         ax2.axhline(self.psd_max_limit, color="C3", ls="--", lw=0.5)
-        ax2.annotate("detect threshold", xy=(freq[-1], self.psd_max_limit), color="C3",
-                     fontsize=6, ha="right", va="bottom")
+        ax2.annotate(
+            "detect threshold",
+            xy=(freq[-1], self.psd_max_limit),
+            color="C3",
+            fontsize=6,
+            ha="right",
+            va="bottom",
+        )
 
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
@@ -269,24 +315,21 @@ class SignalAnalysis:
         for pi in peaks_ix:
             x_i = freq[pi]
             y_i = psd[pi]
-            ax2.annotate(f"{x_i:1.0f} Hz", xy=(x_i, y_i), xytext=(20, -10),
-                         textcoords="offset points", arrowprops={
-                             "arrowstyle": "->",
-                             "connectionstyle": "arc"
-                         })
+            ax2.annotate(
+                f"{x_i:1.0f} Hz",
+                xy=(x_i, y_i),
+                xytext=(20, -10),
+                textcoords="offset points",
+                arrowprops={"arrowstyle": "->", "connectionstyle": "arc"},
+            )
 
         ax1.figure.tight_layout()
         ax1.figure.canvas.draw()
         ax2.figure.tight_layout()
         ax2.figure.canvas.draw()
 
-    def update_signal(self):
-        """TODO: Docstring for update_signal.
-        Returns
-        -------
-        TODO
-
-        """
+    def update_signal(self) -> None:
+        """Update the signal that is analysed."""
         while True:
             try:
                 data = self.vibro.q.get_nowait()
@@ -294,34 +337,34 @@ class SignalAnalysis:
                 break
 
             ix_last = self.prev_sig_ix
-            self.live_data[ix_last:(ix_last + len(data)), :] = data
+            self.live_data[ix_last : (ix_last + len(data)), :] = data
             self.prev_sig_ix += len(data)
-
-        return True
 
     @property
     def n_points(self):
-        """TODO: Docstring for n_points.
-        Returns
-        -------
-        TODO
-
-        """
+        """Length of the data."""
         return self._n_points
 
-    def calc_moe(self, length, width, thick, weight):
-        """TODO: Docstring for calc_moe.
+    def calc_moe(
+        self, length: float, width: float, thick: float, weight: float
+    ) -> float:
+        """Compute the MOE according to beam theory.
 
         Parameters
         ----------
-        length : TODO
-        width : TODO
-        thick : TODO
-        weight : TODO
+        length : float
+            Length of the specimen.
+        width : float
+            Width of the cross-section.
+        thick : float
+            Thickness of the cross-section.
+        weight : float
+            Weight of the specimen in grams.
 
         Returns
         -------
-        TODO
+        moe : float
+            Modulus of elasticity
 
         """
         freq = self._freq
@@ -329,7 +372,7 @@ class SignalAnalysis:
 
         rho = weight / (length * width * thick)
 
-        return 4 * length**2 * freq[peaks_ix]**2 * rho * 1e-6
+        return 4 * length**2 * freq[peaks_ix] ** 2 * rho * 1e-6
 
 
 class VibrometerCapture:
@@ -338,24 +381,27 @@ class VibrometerCapture:
     Parameters
     ----------
     device : int
-        Index of the audio device.
+        Device used to capture the signal.
     rate : int
-        Sampling rate
-    velo : int
-        Velocity set-up in the measuring device.
-    downsample : int
-        Downsample the signal by this factor.
+        Rate used to sample the signal.
+    velo : float
+        Maximum velocity captured by the device.
 
     """
-    def __init__(self, device, rate, velo, downsample):
+
+    def __init__(self, device: int, rate: int, velo: float, downsample: float):
         self.device = device
         self.rate = rate
         self.velo = velo
         self.q = queue.Queue()
         self.downsample = downsample
 
-        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=rate,
-                                     callback=self.audio_callback)
+        self.stream = sd.InputStream(
+            device=self.device,
+            channels=1,
+            samplerate=self.rate,
+            callback=self.audio_callback,
+        )
 
     def start_stream(self):
         self.stream.start()
@@ -372,46 +418,11 @@ class VibrometerCapture:
             print(status, file=sys.stderr)
         # Fancy indexing with mapping creates a (necessary!) copy:
         scale_factor = self.velo / 4.0
-        self.q.put(indata[::self.downsample, mapping] * scale_factor)
-
-
-def main():
-    # Parameters
-    dev_num = None
-
-    for ix, dev in enumerate(sd.query_devices()):
-        match_name = re.match(DEV_NAME, dev["name"])
-        if match_name:
-            dev_num = ix
-            dev_rate = dev["default_samplerate"]
-            break
-
-    vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
-    # Record signal after impulse
-    vib_analysis.wait_and_record(duration=REC_TIME, total_recording=20, thress=THRESSHOLD)
-
-    vib_analysis.compute_frequencies()
-
-    vib_analysis.make_plot()
-
-
-def compute_moe(freq):
-    """Compute the MOE based on the fequency.
-
-    Parameters
-    ----------
-    freq : TODO
-
-    Returns
-    -------
-    TODO
-
-    """
-    return 4 * L**2 * freq**2 * RHO
+        self.q.put(indata[:: self.downsample, mapping] * scale_factor)
 
 
 def play_detected():
-    """Define a sound to play when impulse is detected."""
+    """Play a sound when impulse is detected."""
     fs = 44100
     total_t = 0.1
     freq_1 = 400
@@ -427,7 +438,29 @@ def play_detected():
     sd.play(audio, fs)
     sd.wait()
 
+
+def main():
+    # Parameters
+    dev_num = None
+
+    for ix, dev in enumerate(sd.query_devices()):
+        match_name = re.match(DEV_NAME, dev["name"])
+        if match_name:
+            dev_num = ix
+            dev_rate = dev["default_samplerate"]
+            break
+
+    vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
+    # Record signal after impulse
+    vib_analysis.wait_and_record(
+        duration=REC_TIME, total_recording=20, thress=THRESSHOLD
+    )
+
+    vib_analysis.compute_frequencies()
+
+    vib_analysis.make_plot()
+
+
 if __name__ == "__main__":
     main()
     # play_detected()
-

@@ -6,31 +6,45 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 from matplotlib.animation import FuncAnimation
-from matplotlib.backends.backend_qt5agg import \
-    FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QRunnable, Qt, QThreadPool, QTimer, pyqtSlot
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
-                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-                             QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
-                             QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
-                             QWidget)
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QProgressBar,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QTableView,
+    QVBoxLayout,
+    QWidget,
+)
 
-from vibrometer_analysis.vibrometer import (DEV_NAME, SignalAnalysis, VibrometerCapture)
+from vibrometer_analysis.vibrometer import SignalAnalysis, VibrometerCapture
 
-mpl.use('Qt5Agg')
+matplotlib.use("QtAgg")
 
 
 class Window(QMainWindow):
-    """Docstring for Window. """
+    """Docstring for Window."""
+
     sig_stream_restart = QtCore.pyqtSignal(object)
     sig_device_reload = QtCore.pyqtSignal(object)
     sig_unlock = QtCore.pyqtSignal(object)
     sig_device_velo = QtCore.pyqtSignal(object)
 
     def __init__(self):
-        """TODO: to be defined. """
+        """TODO: to be defined."""
         super().__init__()
         self.threadpool = QThreadPool()
         self.q = queue.Queue()
@@ -42,9 +56,9 @@ class Window(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.statusBar().showMessage('Ready')
+        self.statusBar().showMessage("Ready")
         # self.setGeometry(300, 300, 250, 150)
-        self.setWindowTitle('Vibrometer analysis Pro-30000')
+        self.setWindowTitle("Vibrometer analysis Pro-30000")
         self.main_widget = QWidget(self)
 
         #############################################################
@@ -96,16 +110,16 @@ class Window(QMainWindow):
         right_layout.addWidget(group_results)
 
         #############################################################
-        # Volicity
+        # Velicity
         self.cbox_vel = QComboBox()
         self.cbox_vel.setFixedWidth(80)
         self.cbox_vel.addItem("20")
         self.cbox_vel.addItem("100")
         self.cbox_vel.addItem("500")
         form_device.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
-        # Set default value to "100"
-        self.cbox_vel.setCurrentIndex(1)
-        self.dev_velo = 100.0
+        # Set default value to "20"
+        self.cbox_vel.setCurrentIndex(0)
+        self.dev_velo = 20.0
         self.cbox_vel.currentIndexChanged.connect(self.update_device_velo)
 
         #############################################################
@@ -157,19 +171,23 @@ class Window(QMainWindow):
         self.preview.clicked.connect(self.start_live_preview)
         self.preview_stop = QPushButton("Stop")
         self.preview_stop.clicked.connect(self.stop_live_preview)
+
         layout_buttons.addWidget(self.start)
         layout_buttons.addWidget(self.preview)
         layout_buttons.addWidget(self.preview_stop)
         self.preview_stop.setEnabled(False)
+
         self.progress = QProgressBar()
         self.progress.setMaximum(self.wait_time)
         self.progress.setGeometry(0, 0, 300, 15)
         self.progress.setTextVisible(False)
         self.progress.setValue(0)
-        size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        size_policy = QSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+        )
         size_policy.setRetainSizeWhenHidden(True)
         self.progress.setSizePolicy(size_policy)
-        self.progress.setVisible(False)
+        self.progress.setVisible(True)
         layout_device.addWidget(self.progress)
 
         #############################################################
@@ -177,25 +195,25 @@ class Window(QMainWindow):
         self.board_w = QLineEdit("100")
         self.board_t = QLineEdit("30")
         self.board_l = QLineEdit("1000")
-        self.board_kg = QLineEdit("500")
+        self.board_weight = QLineEdit("500")
         self.board_w.setFixedWidth(70)
         self.board_t.setFixedWidth(70)
         self.board_l.setFixedWidth(70)
-        self.board_kg.setFixedWidth(70)
+        self.board_weight.setFixedWidth(70)
         form_board.addRow(QLabel("Width (mm):"), self.board_w)
         form_board.addRow(QLabel("Thickness (mm):"), self.board_t)
         form_board.addRow(QLabel("Length (mm):"), self.board_l)
-        form_board.addRow(QLabel("Weight (g):"), self.board_kg)
+        form_board.addRow(QLabel("Weight (g):"), self.board_weight)
         # Set validators
         self.board_w.setValidator(self.only_double)
         self.board_t.setValidator(self.only_double)
         self.board_l.setValidator(self.only_double)
-        self.board_kg.setValidator(self.only_double)
+        self.board_weight.setValidator(self.only_double)
 
         #############################################################
         # Frequency region
-        self.freq_min_slide = QSlider(QtCore.Qt.Horizontal)
-        self.freq_max_slide = QSlider(QtCore.Qt.Horizontal)
+        self.freq_min_slide = QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.freq_max_slide = QSlider(QtCore.Qt.Orientation.Horizontal)
         self.freq_max_slide.setInvertedAppearance(True)
         default_min = 100
         default_max = 4000
@@ -238,8 +256,9 @@ class Window(QMainWindow):
         #############################################################
         # Matplotlib
 
-        self.canvas = SignalTimePlot(self.main_widget, width=5, height=2, dpi=100,
-                                     prev_time=self.preview_time)
+        self.canvas = SignalTimePlot(
+            self.main_widget, width=5, height=2, dpi=100, prev_time=self.preview_time
+        )
         self.canvas_f = FrequencyPlot(self.main_widget, width=5, height=2, dpi=100)
 
         self.init_stream()
@@ -274,8 +293,9 @@ class Window(QMainWindow):
         fs = int(dev_rate)
         dev_velo = self.dev_velo
 
-        self.mic = VibrometerCapture(dev_num, rate=fs, velo=dev_velo,
-                                     downsample=self.downsample)
+        self.mic = VibrometerCapture(
+            dev_num, rate=fs, velo=dev_velo, downsample=self.downsample
+        )
         self.canvas.set_mic(self.mic)
 
     def reload_device(self):
@@ -352,31 +372,37 @@ class Window(QMainWindow):
 
         rec_time = self.rec_time.value()
 
-        self.statusBar().showMessage('Waiting for impulse...')
+        self.statusBar().showMessage("Waiting for impulse...")
         thress = self.trigger.value()
         velo = float(self.cbox_vel.currentText())
 
         vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=velo)
         # Record signal after impulse
-        vib_analysis.wait_and_record(duration=rec_time, total_recording=self.wait_time,
-                                     thress=thress, progress=self.progress)
+        vib_analysis.wait_and_record(
+            duration=rec_time,
+            total_recording=self.wait_time,
+            thress=thress,
+            progress=self.progress,
+        )
 
         max_freq = int(self.max_freq.value())
         min_freq = int(self.min_freq.value())
 
         freq = vib_analysis.compute_frequencies(min_freq=min_freq, max_freq=max_freq)
 
-        l = float(self.board_l.text())
+        length = float(self.board_l.text())
         w = float(self.board_w.text())
         t = float(self.board_t.text())
-        kg = float(self.board_kg.text())
+        weight = float(self.board_weight.text())
 
-        moes = vib_analysis.calc_moe(length=l, width=w, thick=t, weight=kg)
+        moes = vib_analysis.calc_moe(length=length, width=w, thick=t, weight=weight)
 
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
 
-        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=int)
+        data_results = pd.DataFrame(
+            {"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=int
+        )
         self.data_results = TableModel(data_results)
         self.results.setModel(self.data_results)
 
@@ -388,7 +414,7 @@ class Window(QMainWindow):
         self.preview.setEnabled(True)
         self.start.setEnabled(True)
 
-        self.statusBar().showMessage('Ready')
+        self.statusBar().showMessage("Ready")
 
     def start_live_preview(self):
         """Start live plotting of signal."""
@@ -397,7 +423,7 @@ class Window(QMainWindow):
         self.cbox_dev.setEnabled(False)
         self.cbox_vel.setEnabled(False)
         self.preview_stop.setEnabled(True)
-        self.statusBar().showMessage('Preview...')
+        self.statusBar().showMessage("Preview...")
 
         rate = int(self.dev_rate)
 
@@ -415,7 +441,7 @@ class Window(QMainWindow):
         self.start.setEnabled(True)
         self.cbox_dev.setEnabled(True)
         self.cbox_vel.setEnabled(True)
-        self.statusBar().showMessage('Ready...')
+        self.statusBar().showMessage("Ready...")
         self.sig_stream_restart.emit("Restart")
 
     def lock_input(self):
@@ -424,7 +450,7 @@ class Window(QMainWindow):
             self.board_l,
             self.board_w,
             self.board_t,
-            self.board_kg,
+            self.board_weight,
         ]
 
         for field in input_fields:
@@ -439,7 +465,7 @@ class Window(QMainWindow):
             self.board_l,
             self.board_w,
             self.board_t,
-            self.board_kg,
+            self.board_weight,
         ]
 
         for field in input_fields:
@@ -454,10 +480,11 @@ class Window(QMainWindow):
             print(status, file=sys.stderr)
         # Fancy indexing with mapping creates a (necessary!) copy:
         # self.signal[:] = indata[::self.downsample, 0]
-        self.q.put(indata[::self.downsample, mapping])
+        self.q.put(indata[:: self.downsample, mapping])
 
 
 class TableResults(QTableView):
+    """A class to show the results in a table."""
 
     def __init__(self, model, parent=None):
         super(TableResults, self).__init__(parent)
@@ -479,7 +506,7 @@ class TableModel(QtCore.QAbstractTableModel):
         self._data = data
 
     def data(self, index, role):
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             value = self._data.iloc[index.row(), index.column()]
             return str(value)
 
@@ -491,11 +518,11 @@ class TableModel(QtCore.QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
         # section is the index of the column/row.
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
                 return str(self._data.columns[section])
 
-            if orientation == Qt.Vertical:
+            if orientation == Qt.Orientation.Vertical:
                 return str(self._data.index[section])
 
 
@@ -518,18 +545,24 @@ class Worker(QRunnable):
         self.fn()
 
 
-class MplCanvas(FigureCanvas, FuncAnimation):
+class MplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(
+        self, parent=None, width: float = 5, height: float = 4, dpi: int = 100
+    ):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
-        FigureCanvas.__init__(self, fig)
+        # FigureCanvas.__init__(self, fig)
+        super(FigureCanvas, self).__init__(fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(
+            self,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
         FigureCanvas.updateGeometry(self)
         self.compute_initial_figure()
 
@@ -549,12 +582,20 @@ class SignalTimePlot(MplCanvas):
 
     """
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100, prev_time=5):
-        self.mic = None
+    mic: VibrometerCapture
+
+    def __init__(
+        self,
+        parent=None,
+        width: float = 5,
+        height: float = 4,
+        dpi: int = 100,
+        prev_time: float = 5,
+    ):
         self.preview_time = prev_time
         super(SignalTimePlot, self).__init__(parent, width, height, dpi)
 
-    def set_mic(self, mic):
+    def set_mic(self, mic: VibrometerCapture):
         self.mic = mic
 
     def compute_initial_figure(self):
@@ -570,18 +611,14 @@ class SignalTimePlot(MplCanvas):
         self.figure.tight_layout()
         self.draw()
 
-    def live_preview(self, rate, downsample, interval):
-        """TODO: Docstring for live_preview.
+    def live_preview(self, rate: int, downsample: float, interval: int) -> None:
+        """Show a live preview of the vibrometer (microphone) signal.
 
         Parameters
         ----------
-        time : TODO
-        rate : TODO
-        interval : TODO
-
-        Returns
-        -------
-        TODO
+        rate : int
+        downsample : float
+        interval : int
 
         """
         self.compute_initial_figure()
@@ -589,7 +626,9 @@ class SignalTimePlot(MplCanvas):
         length = int(show_time * rate / (downsample))
 
         self.live_data = np.zeros((length, 1))
-        self.time = np.arange(start=0, step=float(downsample) / float(rate), stop=show_time)
+        self.time = np.arange(
+            start=0, step=float(downsample) / float(rate), stop=show_time
+        )
 
         ax = self.axes
         self.draw()
@@ -598,8 +637,13 @@ class SignalTimePlot(MplCanvas):
         ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
         ax.grid(True)
 
-        self.ani = FuncAnimation(self.figure, self.update_live_preview, interval=interval,
-                                 blit=True, repeat=False)
+        self.ani = FuncAnimation(
+            self.figure,
+            self.update_live_preview,
+            interval=interval,
+            blit=True,
+            repeat=False,
+        )
 
         self.mic.start_stream()
 
@@ -633,23 +677,27 @@ class FrequencyPlot(MplCanvas):
     width : TODO
     height : TODO
     dpi : TODO
+    min_f : int
+    max_f : int
 
     """
 
-    def __init__(self, parent, width, height, dpi, min_f=0, max_f=20000):
-        """TODO: to be defined.
-
-
-        """
+    def __init__(
+        self,
+        parent,
+        width: float,
+        height: float,
+        dpi: int,
+        min_f: int = 0,
+        max_f: int = 20000,
+    ):
         self.min_f = min_f
         self.max_f = max_f
 
         super(FrequencyPlot, self).__init__(parent, width, height, dpi)
 
     def compute_initial_figure(self):
-        """
-        Initialize plots.
-        """
+        """Initialize plots."""
         ax = self.axes
         ax.cla()
 
@@ -665,7 +713,8 @@ class FrequencyPlot(MplCanvas):
 def main():
     app = QApplication([])
     window = Window()
-    app.exec_()
+    app.exec()
+
 
 
 if __name__ == "__main__":
