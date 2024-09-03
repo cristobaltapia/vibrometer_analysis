@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 from numpy.fft import fft, fftfreq
-from scipy.signal import blackman, find_peaks, hamming, hanning
+from scipy.signal import find_peaks 
+from scipy.signal.windows import hamming
 
 # Add the following befor importing pyplot:
 rc_params_gruyter = {

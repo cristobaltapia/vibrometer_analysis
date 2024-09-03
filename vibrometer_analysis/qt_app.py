@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 from matplotlib.animation import FuncAnimation
-from matplotlib.backends.backend_qt5agg import \
+from matplotlib.backends.backend_qtagg import \
     FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot, QTimer
-from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot, QTimer
+from PyQt6.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
                              QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
                              QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayou
 
 from vibrometer_analysis.vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
 
-matplotlib.use('Qt5Agg')
+matplotlib.use('QtAgg')
 
 
 class Window(QMainWindow):
@@ -103,9 +103,9 @@ class Window(QMainWindow):
         self.cbox_vel.addItem("100")
         self.cbox_vel.addItem("500")
         form_device.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
-        # Set default value to "100"
+        # Set default value to "20"
         self.cbox_vel.setCurrentIndex(1)
-        self.dev_velo = 100.0
+        self.dev_velo = 20.0
         self.cbox_vel.currentIndexChanged.connect(self.update_device_velo)
 
         #############################################################
@@ -166,7 +166,7 @@ class Window(QMainWindow):
         self.progress.setGeometry(0, 0, 300, 15)
         self.progress.setTextVisible(False)
         self.progress.setValue(0)
-        size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        size_policy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         size_policy.setRetainSizeWhenHidden(True)
         self.progress.setSizePolicy(size_policy)
         self.progress.setVisible(False)
@@ -194,8 +194,8 @@ class Window(QMainWindow):
 
         #############################################################
         # Frequency region
-        self.freq_min_slide = QSlider(QtCore.Qt.Horizontal)
-        self.freq_max_slide = QSlider(QtCore.Qt.Horizontal)
+        self.freq_min_slide = QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.freq_max_slide = QSlider(QtCore.Qt.Orientation.Horizontal)
         self.freq_max_slide.setInvertedAppearance(True)
         default_min = 100
         default_max = 4000
@@ -477,7 +477,7 @@ class TableModel(QtCore.QAbstractTableModel):
         self._data = data
 
     def data(self, index, role):
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             value = self._data.iloc[index.row(), index.column()]
             return str(value)
 
@@ -489,11 +489,11 @@ class TableModel(QtCore.QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
         # section is the index of the column/row.
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
                 return str(self._data.columns[section])
 
-            if orientation == Qt.Vertical:
+            if orientation == Qt.Orientation.Vertical:
                 return str(self._data.index[section])
 
 
@@ -515,17 +515,19 @@ class Worker(QRunnable):
         self.fn()
 
 
-class MplCanvas(FigureCanvas, FuncAnimation):
+class MplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
-        FigureCanvas.__init__(self, fig)
+        # FigureCanvas.__init__(self, fig)
+        super(FigureCanvas, self).__init__(fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Policy.Expanding,
+                                   QtWidgets.QSizePolicy.Policy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.compute_initial_figure()
 
@@ -658,7 +660,7 @@ class FrequencyPlot(MplCanvas):
 def main():
     app = QApplication([])
     window = Window()
-    app.exec_()
+    app.exec()
 
 if __name__ == "__main__":
     main()
