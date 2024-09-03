@@ -1,15 +1,15 @@
 import queue
 import re
 import sys
-from time import sleep, time
 from threading import Timer
+from time import sleep, time
 
 import matplotlib as mpl  # isort: skip
 import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 from numpy.fft import fft, fftfreq
-from scipy.signal import find_peaks 
+from scipy.signal import find_peaks
 from scipy.signal.windows import hamming
 
 # Add the following befor importing pyplot:
@@ -46,7 +46,7 @@ DEV_NAME = "default"
 
 
 def next_power_of_2(x):
-    return 1 if x == 0 else 2**(x - 1).bit_length()
+    return 1 if x == 0 else 2 ** (x - 1).bit_length()
 
 
 class SignalAnalysis:
@@ -60,6 +60,7 @@ class SignalAnalysis:
     total_recording : TODO
 
     """
+
     def __init__(self, device, sample_rate, velo):
         self._device = device
         self._sample_rate = int(sample_rate)
@@ -94,8 +95,9 @@ class SignalAnalysis:
         self.live_data = np.zeros((length, 1))
 
         # Initialize a Vibrometer Capture object
-        self.vibro = VibrometerCapture(device=self._device, rate=rate, velo=self._velo,
-                                       downsample=1)
+        self.vibro = VibrometerCapture(
+            device=self._device, rate=rate, velo=self._velo, downsample=1
+        )
         self.vibro.start_stream()
 
         print("------------------")
@@ -137,8 +139,8 @@ class SignalAnalysis:
 
         print("Stop recording...")
 
-        data = self.live_data[ix:ix + int(rate * duration):, 0]
-        data = data.reshape((-1, ))
+        data = self.live_data[ix : ix + int(rate * duration) :, 0]
+        data = data.reshape((-1,))
         # Remove mean
         data = data - np.mean(data)
         time_ = np.arange(start=0, step=1.0 / rate, stop=len(data) / rate)
@@ -169,8 +171,8 @@ class SignalAnalysis:
         window = hamming(n_points)
 
         # Apply FFT
-        psd_ = fft(data * window)[0:n_points // 2]
-        freq = fftfreq(n_points, d=spacing)[0:n_points // 2]
+        psd_ = fft(data * window)[0 : n_points // 2]
+        freq = fftfreq(n_points, d=spacing)[0 : n_points // 2]
 
         psd_ = np.real(psd_)
         psd = 1.0 / n_points * np.abs(psd_)
@@ -179,8 +181,8 @@ class SignalAnalysis:
         ix_min = np.argmin(np.abs(freq - min_freq))
         ix_max = np.argmin(np.abs(freq - max_freq))
 
-        psd = psd[ix_min:ix_max + 1]
-        freq = freq[ix_min:ix_max + 1]
+        psd = psd[ix_min : ix_max + 1]
+        freq = freq[ix_min : ix_max + 1]
 
         # Obtain the three most relevant frequencies
         self.psd_max_limit = np.max(psd) * 0.3
@@ -229,11 +231,13 @@ class SignalAnalysis:
         for pi in peaks_ix:
             x_i = freq[pi]
             y_i = psd[pi]
-            ax2.annotate(f"{x_i} Hz", xy=(x_i, y_i), xytext=(20, -10),
-                         textcoords="offset points", arrowprops={
-                             "arrowstyle": "->",
-                             "connectionstyle": "arc"
-                         })
+            ax2.annotate(
+                f"{x_i} Hz",
+                xy=(x_i, y_i),
+                xytext=(20, -10),
+                textcoords="offset points",
+                arrowprops={"arrowstyle": "->", "connectionstyle": "arc"},
+            )
 
         fig.tight_layout()
         plt.show()
@@ -259,8 +263,14 @@ class SignalAnalysis:
         ax2.plot(freq, psd, color="C0", lw=0.7)
         ax2.scatter(freq[peaks_ix], psd[peaks_ix], marker="o", color="r")
         ax2.axhline(self.psd_max_limit, color="C3", ls="--", lw=0.5)
-        ax2.annotate("detect threshold", xy=(freq[-1], self.psd_max_limit), color="C3",
-                     fontsize=6, ha="right", va="bottom")
+        ax2.annotate(
+            "detect threshold",
+            xy=(freq[-1], self.psd_max_limit),
+            color="C3",
+            fontsize=6,
+            ha="right",
+            va="bottom",
+        )
 
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("PSD")
@@ -270,11 +280,13 @@ class SignalAnalysis:
         for pi in peaks_ix:
             x_i = freq[pi]
             y_i = psd[pi]
-            ax2.annotate(f"{x_i:1.0f} Hz", xy=(x_i, y_i), xytext=(20, -10),
-                         textcoords="offset points", arrowprops={
-                             "arrowstyle": "->",
-                             "connectionstyle": "arc"
-                         })
+            ax2.annotate(
+                f"{x_i:1.0f} Hz",
+                xy=(x_i, y_i),
+                xytext=(20, -10),
+                textcoords="offset points",
+                arrowprops={"arrowstyle": "->", "connectionstyle": "arc"},
+            )
 
         ax1.figure.tight_layout()
         ax1.figure.canvas.draw()
@@ -295,7 +307,7 @@ class SignalAnalysis:
                 break
 
             ix_last = self.prev_sig_ix
-            self.live_data[ix_last:(ix_last + len(data)), :] = data
+            self.live_data[ix_last : (ix_last + len(data)), :] = data
             self.prev_sig_ix += len(data)
 
         return True
@@ -330,7 +342,7 @@ class SignalAnalysis:
 
         rho = weight / (length * width * thick)
 
-        return 4 * length**2 * freq[peaks_ix]**2 * rho * 1e-6
+        return 4 * length**2 * freq[peaks_ix] ** 2 * rho * 1e-6
 
 
 class VibrometerCapture:
@@ -342,20 +354,21 @@ class VibrometerCapture:
     rate : TODO
 
     """
+
     def __init__(self, device, rate, velo, downsample):
-        """TODO: to be defined.
-
-
-
-        """
+        """TODO: to be defined."""
         self.device = device
         self.rate = rate
         self.velo = velo
         self.q = queue.Queue()
         self.downsample = downsample
 
-        self.stream = sd.InputStream(device=self.device, channels=1, samplerate=self.rate,
-                                     callback=self.audio_callback)
+        self.stream = sd.InputStream(
+            device=self.device,
+            channels=1,
+            samplerate=self.rate,
+            callback=self.audio_callback,
+        )
 
     def start_stream(self):
         self.stream.start()
@@ -372,7 +385,7 @@ class VibrometerCapture:
             print(status, file=sys.stderr)
         # Fancy indexing with mapping creates a (necessary!) copy:
         scale_factor = self.velo / 4.0
-        self.q.put(indata[::self.downsample, mapping] * scale_factor)
+        self.q.put(indata[:: self.downsample, mapping] * scale_factor)
 
 
 def main():
@@ -388,7 +401,9 @@ def main():
 
     vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=VELO)
     # Record signal after impulse
-    vib_analysis.wait_and_record(duration=REC_TIME, total_recording=20, thress=THRESSHOLD)
+    vib_analysis.wait_and_record(
+        duration=REC_TIME, total_recording=20, thress=THRESSHOLD
+    )
 
     vib_analysis.compute_frequencies()
 
@@ -432,7 +447,7 @@ def play_detected():
     sd.play(audio, fs)
     sd.wait()
 
+
 if __name__ == "__main__":
     main()
     # play_detected()
-

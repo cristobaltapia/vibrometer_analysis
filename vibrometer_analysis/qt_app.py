@@ -6,31 +6,47 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 from matplotlib.animation import FuncAnimation
-from matplotlib.backends.backend_qtagg import \
-    FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot, QTimer
-from PyQt6.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFormLayout,
-                             QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-                             QMainWindow, QProgressBar, QPushButton, QSizePolicy, QSlider,
-                             QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
-                             QWidget)
+from PyQt6.QtCore import QRunnable, Qt, QThreadPool, QTimer, pyqtSlot
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QProgressBar,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QTableView,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from vibrometer_analysis.vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
 
-matplotlib.use('QtAgg')
+matplotlib.use("QtAgg")
 
 
 class Window(QMainWindow):
-    """Docstring for Window. """
+    """Docstring for Window."""
+
     sig_stream_restart = QtCore.pyqtSignal(object)
     sig_device_reload = QtCore.pyqtSignal(object)
     sig_unlock = QtCore.pyqtSignal(object)
     sig_device_velo = QtCore.pyqtSignal(object)
 
     def __init__(self):
-        """TODO: to be defined. """
+        """TODO: to be defined."""
         super().__init__()
         self.threadpool = QThreadPool()
         self.q = queue.Queue()
@@ -42,9 +58,9 @@ class Window(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.statusBar().showMessage('Ready')
+        self.statusBar().showMessage("Ready")
         # self.setGeometry(300, 300, 250, 150)
-        self.setWindowTitle('Vibrometer analysis Pro-30000')
+        self.setWindowTitle("Vibrometer analysis Pro-30000")
         self.main_widget = QWidget(self)
 
         #############################################################
@@ -166,7 +182,9 @@ class Window(QMainWindow):
         self.progress.setGeometry(0, 0, 300, 15)
         self.progress.setTextVisible(False)
         self.progress.setValue(0)
-        size_policy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        size_policy = QSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+        )
         size_policy.setRetainSizeWhenHidden(True)
         self.progress.setSizePolicy(size_policy)
         self.progress.setVisible(False)
@@ -238,8 +256,9 @@ class Window(QMainWindow):
         #############################################################
         # Matplotlib
 
-        self.canvas = SignalTimePlot(self.main_widget, width=5, height=2, dpi=100,
-                                     prev_time=self.preview_time)
+        self.canvas = SignalTimePlot(
+            self.main_widget, width=5, height=2, dpi=100, prev_time=self.preview_time
+        )
         self.canvas_f = FrequencyPlot(self.main_widget, width=5, height=2, dpi=100)
 
         self.init_stream()
@@ -274,8 +293,9 @@ class Window(QMainWindow):
         fs = int(dev_rate)
         dev_velo = self.dev_velo
 
-        self.mic = VibrometerCapture(dev_num, rate=fs, velo=dev_velo,
-                                     downsample=self.downsample)
+        self.mic = VibrometerCapture(
+            dev_num, rate=fs, velo=dev_velo, downsample=self.downsample
+        )
         self.canvas.set_mic(self.mic)
 
     def reload_device(self):
@@ -352,14 +372,18 @@ class Window(QMainWindow):
 
         rec_time = self.rec_time.value()
 
-        self.statusBar().showMessage('Waiting for impulse...')
+        self.statusBar().showMessage("Waiting for impulse...")
         thress = self.trigger.value()
         velo = float(self.cbox_vel.currentText())
 
         vib_analysis = SignalAnalysis(device=dev_num, sample_rate=dev_rate, velo=velo)
         # Record signal after impulse
-        vib_analysis.wait_and_record(duration=rec_time, total_recording=self.wait_time,
-                                     thress=thress, progress=self.progress)
+        vib_analysis.wait_and_record(
+            duration=rec_time,
+            total_recording=self.wait_time,
+            thress=thress,
+            progress=self.progress,
+        )
 
         max_freq = int(self.max_freq.value())
         min_freq = int(self.min_freq.value())
@@ -376,7 +400,9 @@ class Window(QMainWindow):
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
 
-        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=int)
+        data_results = pd.DataFrame(
+            {"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=int
+        )
         self.data_results = TableModel(data_results)
         self.results.setModel(self.data_results)
 
@@ -388,7 +414,7 @@ class Window(QMainWindow):
         self.preview.setEnabled(True)
         self.start.setEnabled(True)
 
-        self.statusBar().showMessage('Ready')
+        self.statusBar().showMessage("Ready")
 
     def start_live_preview(self):
         """Start live plotting of signal."""
@@ -397,7 +423,7 @@ class Window(QMainWindow):
         self.cbox_dev.setEnabled(False)
         self.cbox_vel.setEnabled(False)
         self.preview_stop.setEnabled(True)
-        self.statusBar().showMessage('Preview...')
+        self.statusBar().showMessage("Preview...")
 
         rate = int(self.dev_rate)
 
@@ -415,7 +441,7 @@ class Window(QMainWindow):
         self.start.setEnabled(True)
         self.cbox_dev.setEnabled(True)
         self.cbox_vel.setEnabled(True)
-        self.statusBar().showMessage('Ready...')
+        self.statusBar().showMessage("Ready...")
         self.sig_stream_restart.emit("Restart")
 
     def lock_input(self):
@@ -454,7 +480,7 @@ class Window(QMainWindow):
             print(status, file=sys.stderr)
         # Fancy indexing with mapping creates a (necessary!) copy:
         # self.signal[:] = indata[::self.downsample, 0]
-        self.q.put(indata[::self.downsample, mapping])
+        self.q.put(indata[:: self.downsample, mapping])
 
 
 class TableResults(QTableView):
@@ -504,6 +530,7 @@ class Worker(QRunnable):
     Used to not block the GUI while aquiring data.
 
     """
+
     def __init__(self, fn, *args, **kwargs):
         super(Worker, self).__init__()
         self.fn = fn
@@ -526,8 +553,11 @@ class MplCanvas(FigureCanvas):
         super(FigureCanvas, self).__init__(fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Policy.Expanding,
-                                   QtWidgets.QSizePolicy.Policy.Expanding)
+        FigureCanvas.setSizePolicy(
+            self,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
         FigureCanvas.updateGeometry(self)
         self.compute_initial_figure()
 
@@ -546,6 +576,7 @@ class SignalTimePlot(MplCanvas):
     dpi : TODO
 
     """
+
     def __init__(self, parent=None, width=5, height=4, dpi=100, prev_time=5):
         self.mic = None
         self.preview_time = prev_time
@@ -586,7 +617,9 @@ class SignalTimePlot(MplCanvas):
         length = int(show_time * rate / (downsample))
 
         self.live_data = np.zeros((length, 1))
-        self.time = np.arange(start=0, step=float(downsample) / float(rate), stop=show_time)
+        self.time = np.arange(
+            start=0, step=float(downsample) / float(rate), stop=show_time
+        )
 
         ax = self.axes
         self.draw()
@@ -595,8 +628,13 @@ class SignalTimePlot(MplCanvas):
         ax.ticklabel_format(axis="y", style="sci", scilimits=(-1, 1))
         ax.grid(True)
 
-        self.ani = FuncAnimation(self.figure, self.update_live_preview, interval=interval,
-                                 blit=True, repeat=False)
+        self.ani = FuncAnimation(
+            self.figure,
+            self.update_live_preview,
+            interval=interval,
+            blit=True,
+            repeat=False,
+        )
 
         self.mic.start_stream()
 
@@ -632,11 +670,9 @@ class FrequencyPlot(MplCanvas):
     dpi : TODO
 
     """
+
     def __init__(self, parent, width, height, dpi, min_f=0, max_f=20000):
-        """TODO: to be defined.
-
-
-        """
+        """TODO: to be defined."""
         self.min_f = min_f
         self.max_f = max_f
 
@@ -657,10 +693,12 @@ class FrequencyPlot(MplCanvas):
         self.figure.tight_layout()
         self.draw()
 
+
 def main():
     app = QApplication([])
     window = Window()
     app.exec()
+
 
 if __name__ == "__main__":
     main()
