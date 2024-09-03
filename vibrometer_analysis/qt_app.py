@@ -9,7 +9,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import QRunnable, Qt, QThreadPool, QTimer, pyqtSlot
+from PyQt6.QtCore import QRunnable, Qt, QThreadPool, pyqtSlot
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -26,13 +26,11 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QSlider,
     QTableView,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from vibrometer_analysis.vibrometer import DEV_NAME, SignalAnalysis, VibrometerCapture
+from vibrometer_analysis.vibrometer import SignalAnalysis, VibrometerCapture
 
 matplotlib.use("QtAgg")
 
@@ -112,7 +110,7 @@ class Window(QMainWindow):
         right_layout.addWidget(group_results)
 
         #############################################################
-        # Volicity
+        # Velicity
         self.cbox_vel = QComboBox()
         self.cbox_vel.setFixedWidth(80)
         self.cbox_vel.addItem("20")
@@ -120,7 +118,7 @@ class Window(QMainWindow):
         self.cbox_vel.addItem("500")
         form_device.addRow(QLabel("VELO (mm/s):"), self.cbox_vel)
         # Set default value to "20"
-        self.cbox_vel.setCurrentIndex(1)
+        self.cbox_vel.setCurrentIndex(0)
         self.dev_velo = 20.0
         self.cbox_vel.currentIndexChanged.connect(self.update_device_velo)
 
@@ -173,10 +171,12 @@ class Window(QMainWindow):
         self.preview.clicked.connect(self.start_live_preview)
         self.preview_stop = QPushButton("Stop")
         self.preview_stop.clicked.connect(self.stop_live_preview)
+
         layout_buttons.addWidget(self.start)
         layout_buttons.addWidget(self.preview)
         layout_buttons.addWidget(self.preview_stop)
         self.preview_stop.setEnabled(False)
+
         self.progress = QProgressBar()
         self.progress.setMaximum(self.wait_time)
         self.progress.setGeometry(0, 0, 300, 15)
@@ -187,7 +187,7 @@ class Window(QMainWindow):
         )
         size_policy.setRetainSizeWhenHidden(True)
         self.progress.setSizePolicy(size_policy)
-        self.progress.setVisible(False)
+        self.progress.setVisible(True)
         layout_device.addWidget(self.progress)
 
         #############################################################
@@ -195,20 +195,20 @@ class Window(QMainWindow):
         self.board_w = QLineEdit("100")
         self.board_t = QLineEdit("30")
         self.board_l = QLineEdit("1000")
-        self.board_kg = QLineEdit("500")
+        self.board_weight = QLineEdit("500")
         self.board_w.setFixedWidth(70)
         self.board_t.setFixedWidth(70)
         self.board_l.setFixedWidth(70)
-        self.board_kg.setFixedWidth(70)
+        self.board_weight.setFixedWidth(70)
         form_board.addRow(QLabel("Width (mm):"), self.board_w)
         form_board.addRow(QLabel("Thickness (mm):"), self.board_t)
         form_board.addRow(QLabel("Length (mm):"), self.board_l)
-        form_board.addRow(QLabel("Weight (g):"), self.board_kg)
+        form_board.addRow(QLabel("Weight (g):"), self.board_weight)
         # Set validators
         self.board_w.setValidator(self.only_double)
         self.board_t.setValidator(self.only_double)
         self.board_l.setValidator(self.only_double)
-        self.board_kg.setValidator(self.only_double)
+        self.board_weight.setValidator(self.only_double)
 
         #############################################################
         # Frequency region
@@ -390,12 +390,12 @@ class Window(QMainWindow):
 
         freq = vib_analysis.compute_frequencies(min_freq=min_freq, max_freq=max_freq)
 
-        l = float(self.board_l.text())
+        length = float(self.board_l.text())
         w = float(self.board_w.text())
         t = float(self.board_t.text())
-        kg = float(self.board_kg.text())
+        weight = float(self.board_weight.text())
 
-        moes = vib_analysis.calc_moe(length=l, width=w, thick=t, weight=kg)
+        moes = vib_analysis.calc_moe(length=length, width=w, thick=t, weight=weight)
 
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
@@ -450,7 +450,7 @@ class Window(QMainWindow):
             self.board_l,
             self.board_w,
             self.board_t,
-            self.board_kg,
+            self.board_weight,
         ]
 
         for field in input_fields:
@@ -465,7 +465,7 @@ class Window(QMainWindow):
             self.board_l,
             self.board_w,
             self.board_t,
-            self.board_kg,
+            self.board_weight,
         ]
 
         for field in input_fields:
@@ -484,6 +484,8 @@ class Window(QMainWindow):
 
 
 class TableResults(QTableView):
+    """A class to show the results in a table."""
+
     def __init__(self, model, parent=None):
         super(TableResults, self).__init__(parent)
 
@@ -545,7 +547,9 @@ class Worker(QRunnable):
 class MplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(
+        self, parent=None, width: float = 5, height: float = 4, dpi: int = 100
+    ):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
@@ -577,12 +581,20 @@ class SignalTimePlot(MplCanvas):
 
     """
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100, prev_time=5):
-        self.mic = None
+    mic: VibrometerCapture
+
+    def __init__(
+        self,
+        parent=None,
+        width: float = 5,
+        height: float = 4,
+        dpi: int = 100,
+        prev_time: float = 5,
+    ):
         self.preview_time = prev_time
         super(SignalTimePlot, self).__init__(parent, width, height, dpi)
 
-    def set_mic(self, mic):
+    def set_mic(self, mic: VibrometerCapture):
         self.mic = mic
 
     def compute_initial_figure(self):
@@ -598,18 +610,14 @@ class SignalTimePlot(MplCanvas):
         self.figure.tight_layout()
         self.draw()
 
-    def live_preview(self, rate, downsample, interval):
-        """TODO: Docstring for live_preview.
+    def live_preview(self, rate: int, downsample: float, interval: int) -> None:
+        """Show a live preview of the vibrometer (microphone) signal.
 
         Parameters
         ----------
-        time : TODO
-        rate : TODO
-        interval : TODO
-
-        Returns
-        -------
-        TODO
+        rate : int
+        downsample : float
+        interval : int
 
         """
         self.compute_initial_figure()
@@ -668,20 +676,27 @@ class FrequencyPlot(MplCanvas):
     width : TODO
     height : TODO
     dpi : TODO
+    min_f : int
+    max_f : int
 
     """
 
-    def __init__(self, parent, width, height, dpi, min_f=0, max_f=20000):
-        """TODO: to be defined."""
+    def __init__(
+        self,
+        parent,
+        width: float,
+        height: float,
+        dpi: int,
+        min_f: int = 0,
+        max_f: int = 20000,
+    ):
         self.min_f = min_f
         self.max_f = max_f
 
         super(FrequencyPlot, self).__init__(parent, width, height, dpi)
 
     def compute_initial_figure(self):
-        """
-        Initialize plots.
-        """
+        """Initialize plots."""
         ax = self.axes
         ax.cla()
 
