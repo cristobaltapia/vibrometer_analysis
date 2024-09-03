@@ -3,30 +3,26 @@ import re
 import sys
 from time import sleep, time
 
-from matplotlib.axes import Axes
-from numpy.typing import ArrayLike, NDArray
-from PyQt6.QtWidgets import QProgressBar
-
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
+from matplotlib.axes import Axes
 from numpy.fft import fft, fftfreq
+from numpy.typing import ArrayLike, NDArray
+from PyQt6.QtWidgets import QProgressBar
 from scipy.signal import find_peaks
 from scipy.signal.windows import hamming
 
 # Add the following befor importing pyplot:
-rc_params_gruyter = {
+rc_params = {
     "figure.figsize": (2.8, 2.0),
-    # "axes.spines.right": False,
     "axes.spines.top": False,
     "font.size": 6,
     "legend.fontsize": 5,
     "axes.labelsize": 6,
-    # "lines.linewidth": 1.0,
-    # "lines.markersize": 5,
-    # "pgf.rcfonts": False,
 }
-mpl.rcParams.update(rc_params_gruyter)
+mpl.rcParams.update(rc_params)
 
 mapping = [c - 1 for c in [1]]
 

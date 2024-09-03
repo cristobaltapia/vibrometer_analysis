@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
 
 from vibrometer_analysis.vibrometer import SignalAnalysis, VibrometerCapture
 
-matplotlib.use("QtAgg")
+mpl.use("QtAgg")
 
 
 class Window(QMainWindow):
@@ -500,7 +500,6 @@ class TableResults(QTableView):
 
 
 class TableModel(QtCore.QAbstractTableModel):
-
     def __init__(self, data):
         super(TableModel, self).__init__()
         self._data = data
@@ -714,7 +713,6 @@ def main():
     app = QApplication([])
     window = Window()
     app.exec()
-
 
 
 if __name__ == "__main__":
