@@ -376,7 +376,7 @@ class Window(QMainWindow):
         moes = np.round(moes, 0)
         freq = np.round(freq, 0)
 
-        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=np.int)
+        data_results = pd.DataFrame({"Freq. [Hz]": freq, "E_dyn [MPa]": moes}, dtype=int)
         self.data_results = TableModel(data_results)
         self.results.setModel(self.data_results)
 

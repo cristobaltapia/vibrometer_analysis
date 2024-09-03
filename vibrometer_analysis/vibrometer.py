@@ -112,7 +112,7 @@ class SignalAnalysis:
         while True:
             self.update_signal()
             if progress:
-                progress.setValue(time() - t_init)
+                progress.setValue(int(time() - t_init))
 
             ix = np.argmax(np.abs(self.live_data[:, 0]))
             val = np.abs(self.live_data[ix, 0])
