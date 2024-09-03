@@ -17,11 +17,11 @@ That's it! Pretty cool, right?
 
 ## Installation
 
-Use poetry:
+Use uv:
 
 ```
 git clone https://github.com/cristobaltapia/vibrometer_analysis.git
 cd vibrometer_analysis
-poetry install
-poetry run app
+uv sync
+uv run vibrometer
 ```

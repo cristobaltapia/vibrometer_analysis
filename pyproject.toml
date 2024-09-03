@@ -1,6 +1,6 @@
 [project]
 name = "vibrometer-analysis"
-version = "0.2.0"
+version = "0.2.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,6 +12,9 @@ dependencies = [
     "matplotlib>=3.4",
     "pyqt6>=6.7.1",
 ]
+
+[project.scripts]
+vibrometer = "vibrometer_analysis.qt_app:main"
 
 [build-system]
 requires = ["hatchling"]
